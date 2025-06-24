@@ -5,11 +5,21 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/context/AuthContext";
 import { useAuth } from "@/hooks/useAuth";
-import NotFound from "@/pages/not-found";
+
+// New organized pages
+import {
+  LoginPage,
+  FeedPage,
+  ProfilePage,
+  MessagesPage,
+  ExplorePage,
+  NotificationsPage,
+  NotFound
+} from "@/pages";
+
+// Legacy pages for compatibility
 import Landing from "@/pages/Landing";
 import Home from "@/pages/Home";
-import Profile from "@/pages/Profile";
-import Messages from "@/pages/Messages";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -17,13 +27,25 @@ function Router() {
   return (
     <Switch>
       {isLoading || !isAuthenticated ? (
-        <Route path="/" component={Landing} />
+        <>
+          <Route path="/" component={LoginPage} />
+          <Route path="/login" component={LoginPage} />
+          <Route component={LoginPage} />
+        </>
       ) : (
         <>
-          <Route path="/" component={Home} />
-          <Route path="/profile/:username" component={Profile} />
-          <Route path="/messages" component={Messages} />
-          <Route path="/messages/:userId" component={Messages} />
+          {/* New organized routes */}
+          <Route path="/" component={FeedPage} />
+          <Route path="/feed" component={FeedPage} />
+          <Route path="/explore" component={ExplorePage} />
+          <Route path="/messages" component={MessagesPage} />
+          <Route path="/messages/:userId" component={MessagesPage} />
+          <Route path="/notifications" component={NotificationsPage} />
+          <Route path="/profile/:username?" component={ProfilePage} />
+          
+          {/* Legacy routes for backward compatibility */}
+          <Route path="/home" component={Home} />
+          <Route path="/landing" component={Landing} />
         </>
       )}
       <Route component={NotFound} />
