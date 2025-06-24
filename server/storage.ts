@@ -267,14 +267,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getFeedPosts(userId: string, offset = 0, limit = 10): Promise<Post[]> {
-    return await db
-      .select()
+    const results = await db
+      .select({
+        id: posts.id,
+        userId: posts.userId,
+        caption: posts.caption,
+        media: posts.media,
+        mediaType: posts.mediaType,
+        location: posts.location,
+        likesCount: posts.likesCount,
+        commentsCount: posts.commentsCount,
+        createdAt: posts.createdAt,
+      })
       .from(posts)
       .innerJoin(follows, eq(posts.userId, follows.followingId))
       .where(eq(follows.followerId, userId))
       .orderBy(desc(posts.createdAt))
       .offset(offset)
       .limit(limit);
+    
+    return results;
   }
 
   async updatePost(id: number, data: Partial<Post>): Promise<Post> {
@@ -349,14 +361,11 @@ export class DatabaseStorage implements IStorage {
 
   // Comment operations
   async createComment(comment: InsertComment): Promise<Comment> {
-    const [newComment] = await db.transaction(async (tx) => {
-      const [created] = await tx.insert(comments).values(comment).returning();
-      await tx.update(posts).set({ 
-        commentsCount: sql`${posts.commentsCount} + 1` 
-      }).where(eq(posts.id, comment.postId));
-      return [created];
-    });
-    return newComment;
+    const [created] = await db.insert(comments).values(comment).returning();
+    await db.update(posts).set({ 
+      commentsCount: sql`${posts.commentsCount} + 1` 
+    }).where(eq(posts.id, comment.postId));
+    return created;
   }
 
   async getPostComments(postId: number): Promise<Comment[]> {

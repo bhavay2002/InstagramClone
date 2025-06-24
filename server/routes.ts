@@ -97,6 +97,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         fromUserId: followerId,
         type: 'follow',
+        content: null,
+        postId: null,
+        commentId: null,
         isRead: false,
       });
 
@@ -291,7 +294,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             userId: post.userId,
             fromUserId: userId,
             type: 'like',
+            content: null,
             postId: parseInt(id),
+            commentId: null,
             isRead: false,
           });
         }
@@ -613,7 +618,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (message.type === 'auth') {
           userId = message.userId;
-          connectedUsers.set(userId, ws);
+          if (userId) {
+            connectedUsers.set(userId, ws);
+          }
         } else if (message.type === 'message' && userId) {
           // Broadcast message to recipient if online
           const recipientWs = connectedUsers.get(message.receiverId);

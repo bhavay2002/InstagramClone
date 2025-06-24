@@ -54,7 +54,7 @@ export const posts = pgTable("posts", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const comments = pgTable("comments", {
+export const comments: any = pgTable("comments", {
   id: serial("id").primaryKey(),
   postId: integer("post_id").notNull().references(() => posts.id),
   userId: varchar("user_id").notNull().references(() => users.id),
