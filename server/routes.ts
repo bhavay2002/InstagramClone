@@ -2,26 +2,28 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+//import { setupAuth, isAuthenticated } from "./replitAuth";
+import { isAuthenticated } from "./isAuthenticated";
+
 import { insertPostSchema, insertCommentSchema, insertMessageSchema, insertStorySchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcrypt";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
-  await setupAuth(app);
+  //await setupAuth(app);
 
   // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
-  });
+  // app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  //   try {
+  //     const userId = req.user.claims.sub;
+  //     const user = await storage.getUser(userId);
+  //     res.json(user);
+  //   } catch (error) {
+  //     console.error("Error fetching user:", error);
+  //     res.status(500).json({ message: "Failed to fetch user" });
+  //   }
+  // });
 
   app.post("/api/register", async (req, res) => {
   const { email, password, firstName, lastName } = req.body;
