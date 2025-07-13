@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertPostSchema, insertCommentSchema, insertMessageSchema, insertStorySchema } from "@shared/schema";
 import { z } from "zod";
+import bcrypt from "bcrypt";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -21,6 +22,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch user" });
     }
   });
+
+  app.post("/api/register", async (req, res) => {
+  const { email, password, firstName, lastName } = req.body;
+
+  const existing = await storage.getUserByUsername(email);
+  if (existing) return res.status(409).json({ message: "Email already exists" });
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const newUser = await storage.upsertUser({
+    id: crypto.randomUUID(),
+    email,
+    password: hashedPassword,
+    firstName,
+    lastName,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  res.status(201).json({ user: newUser });
+});
 
   // User routes
   app.get('/api/users/search', isAuthenticated, async (req: any, res) => {
