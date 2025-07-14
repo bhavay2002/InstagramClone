@@ -32,6 +32,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   searchUsers(query: string, currentUserId: string): Promise<User[]>;
   updateUser(id: string, data: Partial<User>): Promise<User>;
   
@@ -119,6 +120,11 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async getUserByEmail(email: string): Promise<User | undefined> {
+  const [user] = await db.select().from(users).where(eq(users.email, email));
+  return user;
+}
+
   async searchUsers(query: string, currentUserId: string): Promise<User[]> {
     return await db
       .select()
@@ -180,49 +186,27 @@ export class DatabaseStorage implements IStorage {
     return !!follow;
   }
 
-  async getFollowers(userId: string): Promise<User[]> {
-    return await db
-      .select({
-        id: users.id,
-        email: users.email,
-        firstName: users.firstName,
-        lastName: users.lastName,
-        profileImageUrl: users.profileImageUrl,
-        username: users.username,
-        bio: users.bio,
-        isPrivate: users.isPrivate,
-        followerCount: users.followerCount,
-        followingCount: users.followingCount,
-        postCount: users.postCount,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
-      })
-      .from(follows)
-      .innerJoin(users, eq(follows.followerId, users.id))
-      .where(eq(follows.followingId, userId));
-  }
+async getFollowers(userId: string): Promise<User[]> {
+  const result = await db
+    .select()
+    .from(follows)
+    .innerJoin(users, eq(follows.followerId, users.id))
+    .where(eq(follows.followingId, userId));
+
+  return result.map((row) => row.users);
+}
+
 
   async getFollowing(userId: string): Promise<User[]> {
-    return await db
-      .select({
-        id: users.id,
-        email: users.email,
-        firstName: users.firstName,
-        lastName: users.lastName,
-        profileImageUrl: users.profileImageUrl,
-        username: users.username,
-        bio: users.bio,
-        isPrivate: users.isPrivate,
-        followerCount: users.followerCount,
-        followingCount: users.followingCount,
-        postCount: users.postCount,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
-      })
-      .from(follows)
-      .innerJoin(users, eq(follows.followingId, users.id))
-      .where(eq(follows.followerId, userId));
-  }
+  const result = await db
+    .select()
+    .from(follows)
+    .innerJoin(users, eq(follows.followingId, users.id))
+    .where(eq(follows.followerId, userId));
+
+  return result.map((row) => row.users);
+}
+
 
   async getSuggestedUsers(userId: string): Promise<User[]> {
     return await db
@@ -359,14 +343,27 @@ export class DatabaseStorage implements IStorage {
     return !!like;
   }
 
-  // Comment operations
-  async createComment(comment: InsertComment): Promise<Comment> {
-    const [created] = await db.insert(comments).values(comment).returning();
-    await db.update(posts).set({ 
-      commentsCount: sql`${posts.commentsCount} + 1` 
-    }).where(eq(posts.id, comment.postId));
-    return created;
-  }
+async createComment(comment: InsertComment): Promise<Comment> {
+  return await db.transaction(async (tx) => {
+    const [newComment] = await tx
+      .insert(comments)
+      .values(comment)
+      .returning() as Comment[];
+
+    if (!newComment) throw new Error("Failed to insert comment");
+
+    if (typeof comment.postId !== "number") {
+      throw new Error("Invalid postId");
+    }
+
+    await tx
+      .update(posts)
+      .set({ commentsCount: sql`${posts.commentsCount} + 1` })
+      .where(eq(posts.id, comment.postId));
+
+    return newComment;
+  });
+}
 
   async getPostComments(postId: number): Promise<Comment[]> {
     return await db

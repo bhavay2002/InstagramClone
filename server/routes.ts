@@ -4,46 +4,55 @@ import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 //import { setupAuth, isAuthenticated } from "./replitAuth";
 import { isAuthenticated } from "./isAuthenticated";
+import crypto from "crypto";
 
 import { insertPostSchema, insertCommentSchema, insertMessageSchema, insertStorySchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcrypt";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware
-  //await setupAuth(app);
+  
+app.post("/api/register", async (req, res) => {
+  try {
+    const { email, password, firstName, lastName, username } = req.body;
 
-  // Auth routes
-  // app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-  //   try {
-  //     const userId = req.user.claims.sub;
-  //     const user = await storage.getUser(userId);
-  //     res.json(user);
-  //   } catch (error) {
-  //     console.error("Error fetching user:", error);
-  //     res.status(500).json({ message: "Failed to fetch user" });
-  //   }
-  // });
+    if (!email || !password || !firstName || !lastName || !username)
+      return res.status(400).json({ message: "All fields are required" });
 
-  app.post("/api/register", async (req, res) => {
-  const { email, password, firstName, lastName } = req.body;
+    if (!email.includes("@"))
+      return res.status(400).json({ message: "Invalid email format" });
 
-  const existing = await storage.getUserByUsername(email);
-  if (existing) return res.status(409).json({ message: "Email already exists" });
+    const [userByEmail, userByUsername] = await Promise.all([
+      storage.getUserByEmail(email),
+      storage.getUserByUsername(username)
+    ]);
 
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const newUser = await storage.upsertUser({
-    id: crypto.randomUUID(),
-    email,
-    password: hashedPassword,
-    firstName,
-    lastName,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
+    if (userByEmail) return res.status(409).json({ message: "Email already exists" });
+    if (userByUsername) return res.status(409).json({ message: "Username already exists" });
 
-  res.status(201).json({ user: newUser });
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = await storage.upsertUser({
+      id: crypto.randomUUID(),
+      email,
+      password: hashedPassword,
+      username,
+      firstName,
+      lastName,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { password: _, ...safeUser } = newUser;
+
+    res.status(201).json({ user: safeUser });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
 });
+
 
   // User routes
   app.get('/api/users/search', isAuthenticated, async (req: any, res) => {
