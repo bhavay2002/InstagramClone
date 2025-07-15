@@ -15,7 +15,7 @@ export function getSession(): RequestHandler {
       createTableIfMissing: false,
       tableName: "sessions",
     }),
-    secret: process.env.SESSION_SECRET!,
+    secret: process.env.SESSION_SECRET || "instagram_clone_dev_secret_key",
     resave: false,
     saveUninitialized: false,
     cookie: {

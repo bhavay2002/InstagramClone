@@ -9,6 +9,8 @@ import { useAuth } from "@/hooks/useAuth";
 // New organized pages
 import {
   LoginPage,
+  SignInPage,
+  SignUpPage,
   FeedPage,
   ProfilePage,
   MessagesPage,
@@ -30,6 +32,8 @@ function Router() {
         <>
           <Route path="/" component={LoginPage} />
           <Route path="/login" component={LoginPage} />
+          <Route path="/signin" component={SignInPage} />
+          <Route path="/signup" component={SignUpPage} />
           <Route component={LoginPage} />
         </>
       ) : (

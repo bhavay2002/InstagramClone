@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 //import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth as setupCustomAuth } from "./auth";
 import { isAuthenticated } from "./isAuthenticated";
 import crypto from "crypto";
 
@@ -11,6 +12,88 @@ import { z } from "zod";
 import bcrypt from "bcrypt";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+
+  await setupCustomAuth(app);
+
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      let userId: string;
+      let user: any;
+      
+      // Check if this is custom session auth
+      if (req.session && req.session.user) {
+        user = req.session.user;
+        // Get full user data from database
+        const fullUser = await storage.getUser(user.id);
+        if (fullUser) {
+          user = fullUser;
+        }
+      } else {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Return user data without password
+      const { password, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Custom logout endpoint
+  app.post("/api/logout", (req: any, res) => {
+    if (req.session) {
+      req.session.destroy((err: any) => {
+        if (err) {
+          return res.status(500).json({ message: "Could not log out" });
+        }
+        res.json({ message: "Logout successful" });
+      });
+    } else {
+      res.json({ message: "Logout successful" });
+    }
+  });
+  
+  // Custom login endpoint (this will override the one in auth.ts)
+  app.post("/api/custom-login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      // Create session
+      (req as any).session.user = {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        profileImageUrl: user.profileImageUrl,
+      };
+
+      const { password: _, ...safeUser } = user;
+      res.json({ user: safeUser, message: "Login successful" });
+
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
   
 app.post("/api/register", async (req, res) => {
   try {

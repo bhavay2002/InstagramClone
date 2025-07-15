@@ -1,5 +1,8 @@
 // Auth Pages
 export { default as LoginPage } from "./auth/LoginPage";
+export { default as SignInPage } from "./auth/SignInPage";
+export { default as SignUpPage } from "./auth/SignUpPage";
+
 
 // Main Pages
 export { default as FeedPage } from "./feed/FeedPage";
