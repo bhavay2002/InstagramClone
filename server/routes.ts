@@ -20,7 +20,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       let userId: string;
       let user: any;
-      
+
       // Check if this is custom session auth
       if (req.session && req.session.user) {
         user = req.session.user;
@@ -55,7 +55,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Logout successful" });
     }
   });
-  
+
   // Custom login endpoint (this will override the one in auth.ts)
   app.post("/api/custom-login", async (req, res) => {
     try {
@@ -75,18 +75,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Invalid email or password" });
       }
 
-      // Create session
-      (req as any).session.user = {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        profileImageUrl: user.profileImageUrl,
-      };
+      // Create session - ensure session is regenerated for security
+      (req as any).session.regenerate((err: any) => {
+        if (err) {
+          console.error('Session regeneration error:', err);
+          return res.status(500).json({ message: "Session error" });
+        }
+        (req as any).session.user = {
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          profileImageUrl: user.profileImageUrl,
+        };
+        (req as any).session.save((err: any) => {
+          if (err) {
+            console.error('Session save error:', err);
+            return res.status(500).json({ message: "Session save error" });
+          }
 
-      const { password: _, ...safeUser } = user;
-      res.json({ user: safeUser, message: "Login successful" });
+          const { password: _, ...safeUser } = user;
+          res.json({ user: safeUser, message: "Login successful" });
+        });
+      });
 
     } catch (err) {
       console.error(err);
@@ -94,47 +106,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  
-app.post("/api/register", async (req, res) => {
-  try {
-    const { email, password, firstName, lastName, username } = req.body;
 
-    if (!email || !password || !firstName || !lastName || !username)
-      return res.status(400).json({ message: "All fields are required" });
+  app.post("/api/register", async (req, res) => {
+    try {
+      const { email, password, firstName, lastName, username } = req.body;
 
-    if (!email.includes("@"))
-      return res.status(400).json({ message: "Invalid email format" });
+      if (!email || !password || !firstName || !lastName || !username)
+        return res.status(400).json({ message: "All fields are required" });
 
-    const [userByEmail, userByUsername] = await Promise.all([
-      storage.getUserByEmail(email),
-      storage.getUserByUsername(username)
-    ]);
+      if (!email.includes("@"))
+        return res.status(400).json({ message: "Invalid email format" });
 
-    if (userByEmail) return res.status(409).json({ message: "Email already exists" });
-    if (userByUsername) return res.status(409).json({ message: "Username already exists" });
+      const [userByEmail, userByUsername] = await Promise.all([
+        storage.getUserByEmail(email),
+        storage.getUserByUsername(username)
+      ]);
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+      if (userByEmail) return res.status(409).json({ message: "Email already exists" });
+      if (userByUsername) return res.status(409).json({ message: "Username already exists" });
 
-    const newUser = await storage.upsertUser({
-      id: crypto.randomUUID(),
-      email,
-      password: hashedPassword,
-      username,
-      firstName,
-      lastName,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+      const hashedPassword = await bcrypt.hash(password, 10);
 
-    const { password: _, ...safeUser } = newUser;
+      const newUser = await storage.upsertUser({
+        id: crypto.randomUUID(),
+        email,
+        password: hashedPassword,
+        username,
+        firstName,
+        lastName,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
 
-    res.status(201).json({ user: safeUser });
+      const { password: _, ...safeUser } = newUser;
 
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
+      res.status(201).json({ user: safeUser });
+
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
 
 
   // User routes
@@ -142,7 +154,7 @@ app.post("/api/register", async (req, res) => {
     try {
       const { q } = req.query;
       const userId = req.user.claims.sub;
-      
+
       if (!q || typeof q !== 'string') {
         return res.status(400).json({ message: "Search query is required" });
       }
@@ -159,7 +171,7 @@ app.post("/api/register", async (req, res) => {
     try {
       const { username } = req.params;
       const user = await storage.getUserByUsername(username);
-      
+
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -175,7 +187,7 @@ app.post("/api/register", async (req, res) => {
     try {
       const userId = req.user.claims.sub;
       const updateData = req.body;
-      
+
       const user = await storage.updateUser(userId, updateData);
       res.json(user);
     } catch (error) {
@@ -200,13 +212,13 @@ app.post("/api/register", async (req, res) => {
     try {
       const { userId } = req.params;
       const followerId = req.user.claims.sub;
-      
+
       if (userId === followerId) {
         return res.status(400).json({ message: "Cannot follow yourself" });
       }
 
       await storage.followUser(followerId, userId);
-      
+
       // Create notification
       await storage.createNotification({
         userId,
@@ -229,7 +241,7 @@ app.post("/api/register", async (req, res) => {
     try {
       const { userId } = req.params;
       const followerId = req.user.claims.sub;
-      
+
       await storage.unfollowUser(followerId, userId);
       res.json({ success: true });
     } catch (error) {
@@ -276,7 +288,7 @@ app.post("/api/register", async (req, res) => {
     try {
       const userId = req.user.claims.sub;
       const postData = insertPostSchema.parse({ ...req.body, userId });
-      
+
       const post = await storage.createPost(postData);
       res.json(post);
     } catch (error) {
@@ -293,15 +305,15 @@ app.post("/api/register", async (req, res) => {
       const userId = req.user.claims.sub;
       const offset = parseInt(req.query.offset as string) || 0;
       const limit = parseInt(req.query.limit as string) || 10;
-      
+
       const posts = await storage.getFeedPosts(userId, offset, limit);
-      
+
       // Add user info and interaction states to posts
       const enrichedPosts = await Promise.all(posts.map(async (post: any) => {
         const postUser = await storage.getUser(post.userId);
         const hasLiked = await storage.hasLikedPost(userId, post.id);
         const hasSaved = await storage.hasSavedPost(userId, post.id);
-        
+
         return {
           ...post,
           user: postUser,
@@ -309,7 +321,7 @@ app.post("/api/register", async (req, res) => {
           hasSaved
         };
       }));
-      
+
       res.json(enrichedPosts);
     } catch (error) {
       console.error("Error fetching feed:", error);
@@ -322,7 +334,7 @@ app.post("/api/register", async (req, res) => {
       const { id } = req.params;
       const userId = req.user.claims.sub;
       const post = await storage.getPost(parseInt(id));
-      
+
       if (!post) {
         return res.status(404).json({ message: "Post not found" });
       }
@@ -330,7 +342,7 @@ app.post("/api/register", async (req, res) => {
       const postUser = await storage.getUser(post.userId);
       const hasLiked = await storage.hasLikedPost(userId, post.id);
       const hasSaved = await storage.hasSavedPost(userId, post.id);
-      
+
       res.json({
         ...post,
         user: postUser,
@@ -358,12 +370,12 @@ app.post("/api/register", async (req, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
-      
+
       const post = await storage.getPost(parseInt(id));
       if (!post || post.userId !== userId) {
         return res.status(403).json({ message: "Unauthorized" });
       }
-      
+
       const updatedPost = await storage.updatePost(parseInt(id), req.body);
       res.json(updatedPost);
     } catch (error) {
@@ -376,12 +388,12 @@ app.post("/api/register", async (req, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
-      
+
       const post = await storage.getPost(parseInt(id));
       if (!post || post.userId !== userId) {
         return res.status(403).json({ message: "Unauthorized" });
       }
-      
+
       await storage.deletePost(parseInt(id));
       res.json({ success: true });
     } catch (error) {
@@ -395,13 +407,13 @@ app.post("/api/register", async (req, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
-      
+
       const hasLiked = await storage.hasLikedPost(userId, parseInt(id));
       if (hasLiked) {
         await storage.unlikePost(userId, parseInt(id));
       } else {
         await storage.likePost(userId, parseInt(id));
-        
+
         // Create notification
         const post = await storage.getPost(parseInt(id));
         if (post && post.userId !== userId) {
@@ -416,7 +428,7 @@ app.post("/api/register", async (req, res) => {
           });
         }
       }
-      
+
       res.json({ liked: !hasLiked });
     } catch (error) {
       console.error("Error toggling like:", error);
@@ -429,14 +441,14 @@ app.post("/api/register", async (req, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
-      
+
       const hasSaved = await storage.hasSavedPost(userId, parseInt(id));
       if (hasSaved) {
         await storage.unsavePost(userId, parseInt(id));
       } else {
         await storage.savePost(userId, parseInt(id));
       }
-      
+
       res.json({ saved: !hasSaved });
     } catch (error) {
       console.error("Error toggling save:", error);
@@ -448,11 +460,11 @@ app.post("/api/register", async (req, res) => {
     try {
       const { userId } = req.params;
       const currentUserId = req.user.claims.sub;
-      
+
       if (userId !== currentUserId) {
         return res.status(403).json({ message: "Unauthorized" });
       }
-      
+
       const savedPosts = await storage.getSavedPosts(userId);
       res.json(savedPosts);
     } catch (error) {
@@ -466,14 +478,14 @@ app.post("/api/register", async (req, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
-      const commentData = insertCommentSchema.parse({ 
-        ...req.body, 
-        postId: parseInt(id), 
-        userId 
+      const commentData = insertCommentSchema.parse({
+        ...req.body,
+        postId: parseInt(id),
+        userId
       });
-      
+
       const comment = await storage.createComment(commentData);
-      
+
       // Create notification
       const post = await storage.getPost(parseInt(id));
       if (post && post.userId !== userId) {
@@ -487,7 +499,7 @@ app.post("/api/register", async (req, res) => {
           isRead: false,
         });
       }
-      
+
       const commentUser = await storage.getUser(comment.userId);
       res.json({ ...comment, user: commentUser });
     } catch (error) {
@@ -503,12 +515,12 @@ app.post("/api/register", async (req, res) => {
     try {
       const { id } = req.params;
       const comments = await storage.getPostComments(parseInt(id));
-      
+
       const enrichedComments = await Promise.all(comments.map(async (comment) => {
         const user = await storage.getUser(comment.userId);
         return { ...comment, user };
       }));
-      
+
       res.json(enrichedComments);
     } catch (error) {
       console.error("Error fetching comments:", error);
@@ -521,7 +533,7 @@ app.post("/api/register", async (req, res) => {
       const { id } = req.params;
       const { content } = req.body;
       const userId = req.user.claims.sub;
-      
+
       const comment = await storage.updateComment(parseInt(id), content);
       res.json(comment);
     } catch (error) {
@@ -545,14 +557,14 @@ app.post("/api/register", async (req, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
-      
+
       const hasLiked = await storage.hasLikedComment(userId, parseInt(id));
       if (hasLiked) {
         await storage.unlikeComment(userId, parseInt(id));
       } else {
         await storage.likeComment(userId, parseInt(id));
       }
-      
+
       res.json({ liked: !hasLiked });
     } catch (error) {
       console.error("Error toggling comment like:", error);
@@ -565,7 +577,7 @@ app.post("/api/register", async (req, res) => {
     try {
       const senderId = req.user.claims.sub;
       const messageData = insertMessageSchema.parse({ ...req.body, senderId });
-      
+
       const message = await storage.sendMessage(messageData);
       res.json(message);
     } catch (error) {
@@ -592,7 +604,7 @@ app.post("/api/register", async (req, res) => {
     try {
       const { userId } = req.params;
       const currentUserId = req.user.claims.sub;
-      
+
       const messages = await storage.getConversation(currentUserId, userId);
       res.json(messages);
     } catch (error) {
@@ -605,7 +617,7 @@ app.post("/api/register", async (req, res) => {
     try {
       const { userId } = req.params;
       const currentUserId = req.user.claims.sub;
-      
+
       await storage.markMessagesAsRead(userId, currentUserId);
       res.json({ success: true });
     } catch (error) {
@@ -630,13 +642,13 @@ app.post("/api/register", async (req, res) => {
     try {
       const userId = req.user.claims.sub;
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
-      
-      const storyData = insertStorySchema.parse({ 
-        ...req.body, 
-        userId, 
-        expiresAt 
+
+      const storyData = insertStorySchema.parse({
+        ...req.body,
+        userId,
+        expiresAt
       });
-      
+
       const story = await storage.createStory(storyData);
       res.json(story);
     } catch (error) {
@@ -674,7 +686,7 @@ app.post("/api/register", async (req, res) => {
     try {
       const { id } = req.params;
       const viewerId = req.user.claims.sub;
-      
+
       await storage.viewStory(parseInt(id), viewerId);
       res.json({ success: true });
     } catch (error) {
@@ -721,7 +733,7 @@ app.post("/api/register", async (req, res) => {
 
   // WebSocket setup for real-time messaging
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
-  
+
   const connectedUsers = new Map<string, WebSocket>();
 
   wss.on('connection', (ws: WebSocket) => {
@@ -730,7 +742,7 @@ app.post("/api/register", async (req, res) => {
     ws.on('message', (data: string) => {
       try {
         const message = JSON.parse(data);
-        
+
         if (message.type === 'auth') {
           userId = message.userId;
           if (userId) {
