@@ -2,9 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-//import { setupAuth, isAuthenticated } from "./replitAuth";
-import { setupAuth as setupCustomAuth } from "./auth";
-import { isAuthenticated } from "./isAuthenticated";
+import { setupAuth as setupCustomAuth } from "./auth/auth.controller";
+import { isAuthenticated } from "./middleware/isAuthenticated";
 import crypto from "crypto";
 
 import { insertPostSchema, insertCommentSchema, insertMessageSchema, insertStorySchema } from "@shared/schema";
@@ -146,10 +145,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error(err);
       res.status(500).json({ message: "Server error" });
     }
-  });
+  }); 
 
 
-  // User routes
+  // User routes 
   app.get('/api/users/search', isAuthenticated, async (req: any, res) => {
     try {
       const { q } = req.query;

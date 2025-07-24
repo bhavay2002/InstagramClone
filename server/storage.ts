@@ -24,7 +24,7 @@ import {
   type Notification,
   type SavedPost,
 } from "@shared/schema";
-import { db } from "./db";
+import { db } from "./db/db";
 import { eq, desc, and, or, sql, count, exists, not, gt, lt } from "drizzle-orm";
 
 export interface IStorage {
