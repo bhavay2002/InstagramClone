@@ -1,14 +1,9 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import { neonConfig } from "@neondatabase/serverless";
-import ws from "ws";
-import { drizzle } from "drizzle-orm/neon-serverless";
-import { Pool } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 import * as schema from "@shared/schema";
-
-// Configure WebSocket for Neon (required in serverless)
-neonConfig.webSocketConstructor = ws;
 
 // Ensure DATABASE_URL is set
 const connectionString = process.env.DATABASE_URL;
@@ -16,8 +11,11 @@ if (!connectionString) {
   throw new Error("[DB] DATABASE_URL must be set in environment variables.");
 }
 
-// Initialize Neon Pool
-const pool = new Pool({ connectionString });
+// Initialize PostgreSQL Pool for Replit environment
+const pool = new Pool({ 
+  connectionString,
+  ssl: false // Replit internal database doesn't need SSL
+});
 
 // Initialize Drizzle with schema
 const db = drizzle(pool, { schema });

@@ -1,5 +1,5 @@
 import express from "express";
-import { registerRoutes } from "./routes";
+import { registerRoutes } from "./routes/index";
 import { setupVite, serveStatic, log } from "./vite";
 import { apiLogger } from "./middleware/logger";
 import { errorHandler } from "./middleware/errorHandler";
