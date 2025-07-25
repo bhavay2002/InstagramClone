@@ -1,13 +1,18 @@
+// src/controllers/user.controller.ts
 import { Response } from "express";
 import { storage } from "../storage";
 import asyncHandler from "express-async-handler";
-import { SessionRequest } from "../types/SessionRequest";
+import type { SessionRequest } from "../types/SessionRequest";
+import type { AuthenticatedRequest } from "../types/SessionRequest";
 
+/**
+ * Search users based on query string.
+ */
 export const searchUsers = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
   const { q } = req.query;
-  const userId = req.user?.claims.sub;
+  const userId = req.session.user?.id;
 
-  if (!q || typeof q !== 'string') {
+  if (!q || typeof q !== "string") {
     res.status(400).json({ message: "Search query is required" });
     return;
   }
@@ -16,6 +21,9 @@ export const searchUsers = asyncHandler(async (req: SessionRequest, res: Respons
   res.json(users);
 });
 
+/**
+ * Get user details by username.
+ */
 export const getUserByUsername = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
   const { username } = req.params;
   const user = await storage.getUserByUsername(username);
@@ -28,23 +36,32 @@ export const getUserByUsername = asyncHandler(async (req: SessionRequest, res: R
   res.json(user);
 });
 
-export const updateProfile = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
-  const userId = req.user?.claims.sub!;
+/**
+ * Update the logged-in user's profile.
+ */
+export const updateProfile = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.session.user.id;
   const updateData = req.body;
 
   const user = await storage.updateUser(userId, updateData);
   res.json(user);
 });
 
-export const getSuggestedUsers = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
-  const userId = req.user?.claims.sub!;
+/**
+ * Get suggested users for the logged-in user.
+ */
+export const getSuggestedUsers = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.session.user.id;
   const suggestions = await storage.getSuggestedUsers(userId);
   res.json(suggestions);
 });
 
-export const getSavedPosts = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
+/**
+ * Get saved posts for a given user (only if requesting user matches).
+ */
+export const getSavedPosts = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const { userId } = req.params;
-  const currentUserId = req.user?.claims.sub!;
+  const currentUserId = req.session.user.id;
 
   if (userId !== currentUserId) {
     res.status(403).json({ message: "Unauthorized" });
