@@ -22,47 +22,51 @@ passport.use(
   })
 );
 
-// Google OAuth Strategy
-passport.use(
-  new GoogleStrategy(
-    {
-      clientID: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      callbackURL: "/api/auth/google/callback"
-    },
-    async (accessToken, refreshToken, profile, done) => {
-      try {
-        // Check if user already exists with this Google ID
-        let user = await storage.getUserByEmail(profile.emails?.[0]?.value || "");
-        
-        if (user) {
-          // User exists, update their profile
-          user = await storage.updateUser(user.id, {
-            firstName: profile.name?.givenName || user.firstName,
-            lastName: profile.name?.familyName || user.lastName,
-            profileImageUrl: profile.photos?.[0]?.value || user.profileImageUrl,
-          });
-        } else {
-          // Create new user
-          user = await storage.upsertUser({
-            id: crypto.randomUUID(),
-            email: profile.emails?.[0]?.value || "",
-            firstName: profile.name?.givenName || "",
-            lastName: profile.name?.familyName || "",
-            username: profile.emails?.[0]?.value?.split('@')[0] || crypto.randomUUID().substring(0, 8),
-            profileImageUrl: profile.photos?.[0]?.value || null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          });
-        }
+// Google OAuth Strategy - only configure if credentials are available
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  passport.use(
+    new GoogleStrategy(
+      {
+        clientID: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        callbackURL: "/api/auth/google/callback"
+      },
+      async (accessToken, refreshToken, profile, done) => {
+        try {
+          // Check if user already exists with this Google ID
+          let user = await storage.getUserByEmail(profile.emails?.[0]?.value || "");
+          
+          if (user) {
+            // User exists, update their profile
+            user = await storage.updateUser(user.id, {
+              firstName: profile.name?.givenName || user.firstName,
+              lastName: profile.name?.familyName || user.lastName,
+              profileImageUrl: profile.photos?.[0]?.value || user.profileImageUrl,
+            });
+          } else {
+            // Create new user
+            user = await storage.upsertUser({
+              id: crypto.randomUUID(),
+              email: profile.emails?.[0]?.value || "",
+              firstName: profile.name?.givenName || "",
+              lastName: profile.name?.familyName || "",
+              username: profile.emails?.[0]?.value?.split('@')[0] || crypto.randomUUID().substring(0, 8),
+              profileImageUrl: profile.photos?.[0]?.value || null,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            });
+          }
 
-        return done(null, user);
-      } catch (error) {
-        return done(error);
+          return done(null, user);
+        } catch (error) {
+          return done(error);
+        }
       }
-    }
-  )
-);
+    )
+  );
+} else {
+  console.log("[AUTH] Google OAuth not configured - GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET not provided");
+}
 
 // Serialize only the user ID into the session
 passport.serializeUser((user: any, done) => {

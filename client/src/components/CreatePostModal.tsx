@@ -18,9 +18,10 @@ import { useAuthContext } from '@/context/AuthContext';
 interface CreatePostModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onPostCreated?: () => void;
 }
 
-export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
+export function CreatePostModal({ open, onOpenChange, onPostCreated }: CreatePostModalProps) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [caption, setCaption] = useState('');
   const [location, setLocation] = useState('');
@@ -37,6 +38,7 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/posts/feed'] });
       handleClose();
+      onPostCreated?.();
       toast({
         title: "Success",
         description: "Post created successfully!",

@@ -11,10 +11,10 @@ if (!connectionString) {
   throw new Error("[DB] DATABASE_URL must be set in environment variables.");
 }
 
-// Initialize PostgreSQL Pool for Replit environment
+// Initialize PostgreSQL Pool for Neon environment
 const pool = new Pool({ 
   connectionString,
-  ssl: false // Replit internal database doesn't need SSL
+  ssl: true
 });
 
 // Initialize Drizzle with schema

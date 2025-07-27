@@ -251,21 +251,10 @@ async getFollowers(userId: string): Promise<User[]> {
   }
 
   async getFeedPosts(userId: string, offset = 0, limit = 10): Promise<Post[]> {
+    // For now, show all posts for testing - in production this would filter by follows
     const results = await db
-      .select({
-        id: posts.id,
-        userId: posts.userId,
-        caption: posts.caption,
-        media: posts.media,
-        mediaType: posts.mediaType,
-        location: posts.location,
-        likesCount: posts.likesCount,
-        commentsCount: posts.commentsCount,
-        createdAt: posts.createdAt,
-      })
+      .select()
       .from(posts)
-      .innerJoin(follows, eq(posts.userId, follows.followingId))
-      .where(eq(follows.followerId, userId))
       .orderBy(desc(posts.createdAt))
       .offset(offset)
       .limit(limit);

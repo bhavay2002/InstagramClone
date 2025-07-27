@@ -20,6 +20,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication
   await setupCustomAuth(app);
 
+  // Development: Seed database endpoint
+  if (process.env.NODE_ENV === "development") {
+    app.post("/api/dev/seed-database", async (req, res) => {
+      try {
+        const { seedDatabase } = await import("../data/seedData");
+        const result = await seedDatabase();
+        res.json({ 
+          message: "Database seeded successfully!", 
+          ...result 
+        });
+      } catch (error) {
+        console.error("Seeding error:", error);
+        res.status(500).json({ 
+          message: "Failed to seed database", 
+          error: error instanceof Error ? error.message : "Unknown error" 
+        });
+      }
+    });
+  }
+
   // Register route modules
   app.use('/api/auth', authRoutes);
   app.use('/api/users', usersRoutes);
