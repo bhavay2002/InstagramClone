@@ -5,53 +5,60 @@ import asyncHandler from "express-async-handler";
 import { storage } from "../storage";
 import type { SessionRequest } from "../types/SessionRequest";
 
-export const getCurrentUser = asyncHandler(async (req: SessionRequest, res: Response) => {
+export const getCurrentUser = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
   if (!req.session?.user) {
-    return res.status(401).json({ message: "Unauthorized" });
+    res.status(401).json({ message: "Unauthorized" });
+    return;
   }
 
   let user = req.session.user;
   const fullUser = await storage.getUser(user.id);
-  if (fullUser) user = fullUser;
+  if (fullUser) user = fullUser as any;
 
   const { password, ...safeUser } = user as any;
   res.json(safeUser);
 });
 
-export const logout = asyncHandler(async (req: SessionRequest, res: Response) => {
+export const logout = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
   if (req.session) {
     req.session.destroy(err => {
       if (err) {
-        return res.status(500).json({ message: "Could not log out" });
+        res.status(500).json({ message: "Could not log out" });
+        return;
       } else {
-        return res.json({ message: "Logout successful" });
+        res.json({ message: "Logout successful" });
+        return;
       }
     });
   } else {
-    return res.json({ message: "Logout successful" });
+    res.json({ message: "Logout successful" });
   }
 });
 
-export const login = asyncHandler(async (req: SessionRequest, res: Response) => {
+export const login = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
   const { email, password } = req.body;
 
   if (!email || !password) {
-    return res.status(400).json({ message: "Email and password are required" });
+    res.status(400).json({ message: "Email and password are required" });
+    return;
   }
 
   const user = await storage.getUserByEmail(email);
   if (!user || !user.password) {
-    return res.status(401).json({ message: "Invalid email or password" });
+    res.status(401).json({ message: "Invalid email or password" });
+    return;
   }
 
   const isValidPassword = await bcrypt.compare(password, user.password);
   if (!isValidPassword) {
-    return res.status(401).json({ message: "Invalid email or password" });
+    res.status(401).json({ message: "Invalid email or password" });
+    return;
   }
 
   req.session.regenerate(err => {
     if (err) {
-      return res.status(500).json({ message: "Session error" });
+      res.status(500).json({ message: "Session error" });
+      return;
     }
 
     req.session.user = {
@@ -60,12 +67,13 @@ export const login = asyncHandler(async (req: SessionRequest, res: Response) => 
       username: user.username!,
       firstName: user.firstName!,
       lastName: user.lastName!,
-      profileImageUrl: user.profileImageUrl ?? undefined,
+      profileImageUrl: user.profileImageUrl ?? null,
     };
 
     req.session.save(err => {
       if (err) {
-        return res.status(500).json({ message: "Session save error" });
+        res.status(500).json({ message: "Session save error" });
+        return;
       }
 
       const { password: _, ...safeUser } = user;
@@ -74,15 +82,17 @@ export const login = asyncHandler(async (req: SessionRequest, res: Response) => 
   });
 });
 
-export const register = asyncHandler(async (req: SessionRequest, res: Response) => {
+export const register = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
   const { email, password, firstName, lastName, username } = req.body;
 
   if (!email || !password || !firstName || !lastName || !username) {
-    return res.status(400).json({ message: "All fields are required" });
+    res.status(400).json({ message: "All fields are required" });
+    return;
   }
 
   if (!email.includes("@")) {
-    return res.status(400).json({ message: "Invalid email format" });
+    res.status(400).json({ message: "Invalid email format" });
+    return;
   }
 
   const [userByEmail, userByUsername] = await Promise.all([
@@ -91,11 +101,13 @@ export const register = asyncHandler(async (req: SessionRequest, res: Response) 
   ]);
 
   if (userByEmail) {
-    return res.status(409).json({ message: "Email already exists" });
+    res.status(409).json({ message: "Email already exists" });
+    return;
   }
 
   if (userByUsername) {
-    return res.status(409).json({ message: "Username already exists" });
+    res.status(409).json({ message: "Username already exists" });
+    return;
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);

@@ -9,7 +9,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 
@@ -34,7 +34,7 @@ export default function SignInPage() {
 
   const signInMutation = useMutation({
     mutationFn: async (data: SignInForm) => {
-      const response = await apiRequest("/api/custom-login", "POST", data);
+      const response = await apiRequest("POST", "/api/auth/custom-login", data);
       return response;
     },
     onSuccess: () => {
@@ -42,7 +42,12 @@ export default function SignInPage() {
         title: "Welcome back!",
         description: "You've been signed in successfully.",
       });
-      window.location.href = "/feed";
+      // Invalidate auth query to refetch user data
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      // Redirect after a short delay to allow query to update
+      setTimeout(() => {
+        window.location.href = "/feed";
+      }, 500);
     },
     onError: (error: Error) => {
       toast({
