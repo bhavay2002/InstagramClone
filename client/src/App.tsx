@@ -26,9 +26,13 @@ import Home from "@/pages/Home";
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
 
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
   return (
     <Switch>
-      {isLoading || !isAuthenticated ? (
+      {!isAuthenticated ? (
         <>
           <Route path="/" component={LoginPage} />
           <Route path="/login" component={LoginPage} />
@@ -50,6 +54,11 @@ function Router() {
           {/* Legacy routes for backward compatibility */}
           <Route path="/home" component={Home} />
           <Route path="/landing" component={Landing} />
+          
+          {/* Redirect auth pages to feed when authenticated */}
+          <Route path="/login" component={FeedPage} />
+          <Route path="/signin" component={FeedPage} />
+          <Route path="/signup" component={FeedPage} />
         </>
       )}
       <Route component={NotFound} />

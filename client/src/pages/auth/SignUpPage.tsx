@@ -7,10 +7,10 @@ import { Instagram, Eye, EyeOff } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 const signUpSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
@@ -29,7 +29,9 @@ type SignUpForm = z.infer<typeof signUpSchema>;
 export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const form = useForm<SignUpForm>({
     resolver: zodResolver(signUpSchema),
@@ -49,11 +51,16 @@ export default function SignUpPage() {
       return response;
     },
     onSuccess: () => {
+      // Invalidate auth queries to refresh user state
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({
         title: "Account created successfully!",
-        description: "Welcome to Instagram Clone! You can now sign in.",
+        description: "Welcome to Instagram Clone!",
       });
-      window.location.href = "/signin";
+      // Use a small delay to ensure the query invalidation completes
+      setTimeout(() => {
+        setLocation("/feed");
+      }, 100);
     },
     onError: (error: Error) => {
       toast({

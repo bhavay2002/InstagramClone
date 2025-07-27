@@ -1,7 +1,7 @@
 // types/session-request.ts
 import type { Request } from "express";
 import type { Session } from "express-session";
-import type { User } from "./user";
+import type { User } from "@shared/schema";
 
 
 export interface SessionRequest extends Request {

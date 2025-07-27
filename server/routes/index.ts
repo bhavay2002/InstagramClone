@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { setupAuth as setupCustomAuth } from "../auth/auth.controller";
+import { setupAuth as setupCustomAuth } from "../controllers/auth.controller";
 import { initWebSocketServer } from "../socket";
 import { storage } from "../storage";
 import { isAuthenticated } from "../middleware/isAuthenticated";

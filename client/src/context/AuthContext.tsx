@@ -14,7 +14,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { user, isLoading, isAuthenticated } = useAuth();
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, isAuthenticated }}>
+    <AuthContext.Provider value={{ user: user as User | null, isLoading, isAuthenticated }}>
       {children}
     </AuthContext.Provider>
   );
