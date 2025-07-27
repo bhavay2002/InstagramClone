@@ -42,6 +42,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register route modules
   app.use('/api/auth', authRoutes);
+  
+  // Backward compatibility routes
+  const { login, register, logout } = await import("../controllers/auth.controller");
+  app.post('/api/login', login);
+  app.post('/api/register', register);
+  app.post('/api/logout', logout);
+  
+  // GET route for API documentation
+  app.get('/api/login', (req, res) => {
+    res.json({
+      message: "Login endpoint - use POST method",
+      method: "POST",
+      endpoint: "/api/login",
+      body: {
+        email: "user@example.com",
+        password: "password"
+      }
+    });
+  });
+  
   app.use('/api/users', usersRoutes);
   app.use('/api/users', followsRoutes); // Follow routes are under /api/users/:userId/follow
   app.use('/api/posts', postsRoutes);

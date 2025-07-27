@@ -35,7 +35,7 @@ export default function SignInPage() {
 
   const signInMutation = useMutation({
     mutationFn: async (data: SignInForm) => {
-      const response = await apiRequest("POST", "/api/auth/custom-login", data);
+      const response = await apiRequest("POST", "/api/auth/login", data);
       return response;
     },
     onSuccess: () => {

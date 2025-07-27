@@ -8,7 +8,6 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(apiLogger);
-app.use(errorHandler);
 
 (async () => {
   const server = await registerRoutes(app);
@@ -18,6 +17,8 @@ app.use(errorHandler);
   } else {
     serveStatic(app);
   }
+  
+  app.use(errorHandler);
 
   const port = 5000;
   server.listen({ port, host: "0.0.0.0", reusePort: true }, () => {

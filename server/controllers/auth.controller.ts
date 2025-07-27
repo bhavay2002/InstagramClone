@@ -166,6 +166,50 @@ export const register = asyncHandler(async (req: SessionRequest, res: Response):
   res.status(201).json(safeUser);
 });
 
+// Login user (alias for custom-login for consistent API)
+export const login = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    res.status(400).json({ message: "Email and password are required" });
+    return;
+  }
+
+  const user = await storage.getUserByEmail(email);
+  if (!user || !user.password) {
+    res.status(401).json({ message: "Invalid email or password" });
+    return;
+  }
+
+  const isValidPassword = await bcrypt.compare(password, user.password);
+  if (!isValidPassword) {
+    res.status(401).json({ message: "Invalid email or password" });
+    return;
+  }
+
+  // Create session
+  req.session!.user = {
+    id: user.id,
+    email: user.email || null,
+    password: null, // Never store password in session
+    firstName: user.firstName || null,
+    lastName: user.lastName || null,
+    username: user.username,
+    profileImageUrl: user.profileImageUrl || null,
+    bio: user.bio || null,
+    isPrivate: user.isPrivate || false,
+    followerCount: user.followerCount || 0,
+    followingCount: user.followingCount || 0,
+    postCount: user.postCount || 0,
+    createdAt: user.createdAt || null,
+    updatedAt: user.updatedAt || null,
+  };
+
+  // Return user data (without password)
+  const { password: _, ...safeUser } = user;
+  res.json({ user: safeUser, message: "Login successful" });
+});
+
 // Logout user
 export const logout = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
   if (req.session) {
