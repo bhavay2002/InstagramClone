@@ -6,7 +6,7 @@ export { default as SignUpPage } from "./auth/SignUpPage";
 
 // Main Pages
 export { default as FeedPage } from "./feed/FeedPage";
-export { default as ProfilePage } from "./profile/ProfilePage";
+export { default as ProfilePage } from "./Profile";
 export { default as MessagesPage } from "./messages/MessagesPage";
 export { default as ExplorePage } from "./explore/ExplorePage";
 export { default as NotificationsPage } from "./notifications/NotificationsPage";

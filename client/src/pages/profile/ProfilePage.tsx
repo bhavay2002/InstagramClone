@@ -30,55 +30,56 @@ interface ProfilePost extends Post {
 }
 
 export default function ProfilePage() {
-  const params = useParams();
+  const params = useParams<{ username?: string }>();
   const { user: currentUser } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("posts");
   
-  const username = params.username || currentUser?.id;
-  const isOwnProfile = username === currentUser?.id;
+  const username = params.username || currentUser?.username || "";
+  const isOwnProfile = username === (currentUser?.username || "");
 
-  const { data: profileUser, isLoading: userLoading } = useQuery<User>({
+  const { data: profileUser, isLoading: userLoading, error: userError } = useQuery<User>({
     queryKey: [`/api/users/${username}`],
     enabled: !!username,
-    onError: (error: Error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
+  });
+
+  // Handle user query error
+  if (userError) {
+    if (isUnauthorizedError(userError)) {
+      toast({
+        title: "Unauthorized",
+        description: "You are logged out. Logging in again...",
+        variant: "destructive",
+      });
+      setTimeout(() => {
+        window.location.href = "/api/login";
+      }, 500);
+    } else {
       toast({
         title: "Error",
         description: "Failed to load profile",
         variant: "destructive",
       });
-    },
-  });
+    }
+  }
 
-  const { data: posts = [], isLoading: postsLoading } = useQuery<ProfilePost[]>({
+  const { data: posts = [], isLoading: postsLoading, error: postsError } = useQuery<ProfilePost[]>({
     queryKey: [`/api/users/${username}/posts`],
     enabled: !!username,
-    onError: (error: Error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
-    },
   });
+
+  // Handle posts query error
+  if (postsError && isUnauthorizedError(postsError)) {
+    toast({
+      title: "Unauthorized",
+      description: "You are logged out. Logging in again...",
+      variant: "destructive",
+    });
+    setTimeout(() => {
+      window.location.href = "/api/login";
+    }, 500);
+  }
 
   const { data: followers = [] } = useQuery<User[]>({
     queryKey: [`/api/users/${username}/followers`],
@@ -102,16 +103,18 @@ export default function ProfilePage() {
 
   const followMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest(`/api/users/${username}/follow`, {
-        method: "POST",
-      });
+      if (isFollowing) {
+        await apiRequest(`/api/users/${username}/unfollow`, { method: "POST" });
+      } else {
+        await apiRequest(`/api/users/${username}/follow`, { method: "POST" });
+      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries([`/api/users/${username}/following-status`]);
-      queryClient.invalidateQueries([`/api/users/${username}/followers`]);
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${username}/following-status`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${username}/followers`] });
       toast({
         title: isFollowing ? "Unfollowed" : "Following",
-        description: `You ${isFollowing ? "unfollowed" : "are now following"} ${profileUser?.firstName || "this user"}`,
+        description: `You ${isFollowing ? "unfollowed" : "are now following"} ${profileUser?.username || "this user"}`,
       });
     },
     onError: (error: Error) => {
@@ -242,7 +245,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="text-center">
                     <div className="font-bold text-gray-900 dark:text-white">
-                      {followers.length}
+                      {followers?.length || 0}
                     </div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">
                       Followers
@@ -250,7 +253,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="text-center">
                     <div className="font-bold text-gray-900 dark:text-white">
-                      {following.length}
+                      {following?.length || 0}
                     </div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">
                       Following
@@ -258,9 +261,14 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {profileUser.email && (
+                {profileUser.username && (
                   <p className="text-gray-600 dark:text-gray-400 text-sm">
-                    {profileUser.email}
+                    @{profileUser.username}
+                  </p>
+                )}
+                {profileUser.bio && (
+                  <p className="text-gray-700 dark:text-gray-300 text-sm mt-2">
+                    {profileUser.bio}
                   </p>
                 )}
               </div>
@@ -308,7 +316,7 @@ export default function ProfilePage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {posts.map((post) => (
+                {posts.map((post: ProfilePost) => (
                   <Card key={post.id} className="overflow-hidden group cursor-pointer hover:shadow-lg transition-shadow">
                     <div className="aspect-square relative">
                       {post.mediaType === "video" ? (

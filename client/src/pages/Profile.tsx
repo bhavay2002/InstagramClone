@@ -118,8 +118,12 @@ export default function Profile() {
 
   const followMutation = useMutation({
     mutationFn: async () => {
-      const method = followStatus?.isFollowing ? 'DELETE' : 'POST';
-      await apiRequest(method, `/api/users/${profileUser?.id}/follow`);
+      const url = `/api/users/${profileUser?.id}/follow`;
+      if (followStatus?.isFollowing) {
+        await apiRequest(url, { method: 'DELETE' });
+      } else {
+        await apiRequest(url, { method: 'POST' });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/users/${currentUser?.id}/following/${profileUser?.id}`] });

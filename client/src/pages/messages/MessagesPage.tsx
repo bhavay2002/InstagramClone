@@ -40,66 +40,66 @@ export default function MessagesPage() {
   const [ws, setWs] = useState<WebSocket | null>(null);
 
   // Fetch conversations
-  const { data: conversations = [], isLoading: conversationsLoading } = useQuery<ConversationItem[]>({
+  const { data: conversations = [], isLoading: conversationsLoading, error: conversationsError } = useQuery<ConversationItem[]>({
     queryKey: ["/api/messages/conversations"],
-    onError: (error: Error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
-    },
   });
+
+  // Handle conversations error
+  if (conversationsError && isUnauthorizedError(conversationsError)) {
+    toast({
+      title: "Unauthorized",
+      description: "You are logged out. Logging in again...",
+      variant: "destructive",
+    });
+    setTimeout(() => {
+      window.location.href = "/api/login";
+    }, 500);
+  }
 
   // Fetch messages for selected conversation
-  const { data: messages = [], isLoading: messagesLoading } = useQuery<Message[]>({
+  const { data: messages = [], isLoading: messagesLoading, error: messagesError } = useQuery<Message[]>({
     queryKey: [`/api/messages/${selectedConversation?.id}`],
     enabled: !!selectedConversation,
-    onError: (error: Error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
-    },
   });
 
+  // Handle messages error
+  if (messagesError && isUnauthorizedError(messagesError)) {
+    toast({
+      title: "Unauthorized",
+      description: "You are logged out. Logging in again...",
+      variant: "destructive",
+    });
+    setTimeout(() => {
+      window.location.href = "/api/login";
+    }, 500);
+  }
+
   // Search users
-  const { data: searchResults = [] } = useQuery<User[]>({
+  const { data: searchResults = [], error: searchError } = useQuery<User[]>({
     queryKey: [`/api/users/search?q=${searchQuery}`],
     enabled: searchQuery.length > 0,
-    onError: (error: Error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
-    },
   });
+
+  // Handle search error
+  if (searchError && isUnauthorizedError(searchError)) {
+    toast({
+      title: "Unauthorized",
+      description: "You are logged out. Logging in again...",
+      variant: "destructive",
+    });
+    setTimeout(() => {
+      window.location.href = "/api/login";
+    }, 500);
+  }
 
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async ({ receiverId, content }: { receiverId: string; content: string }) => {
       await apiRequest("/api/messages", {
         method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           receiverId,
           content,
@@ -108,8 +108,8 @@ export default function MessagesPage() {
     },
     onSuccess: () => {
       setMessageText("");
-      queryClient.invalidateQueries([`/api/messages/${selectedConversation?.id}`]);
-      queryClient.invalidateQueries(["/api/messages/conversations"]);
+      queryClient.invalidateQueries({ queryKey: [`/api/messages/${selectedConversation?.id}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/messages/conversations"] });
     },
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
@@ -133,24 +133,26 @@ export default function MessagesPage() {
 
   // WebSocket setup
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/ws`;
     const socket = new WebSocket(wsUrl);
 
     socket.onopen = () => {
-      socket.send(JSON.stringify({
-        type: 'auth',
-        userId: user.id
-      }));
+      if (user?.id) {
+        socket.send(JSON.stringify({
+          type: 'auth',
+          userId: user.id
+        }));
+      }
     };
 
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === 'new_message') {
-        queryClient.invalidateQueries([`/api/messages/${data.senderId}`]);
-        queryClient.invalidateQueries(["/api/messages/conversations"]);
+        queryClient.invalidateQueries({ queryKey: [`/api/messages/${data.senderId}`] });
+        queryClient.invalidateQueries({ queryKey: ["/api/messages/conversations"] });
       }
     };
 
