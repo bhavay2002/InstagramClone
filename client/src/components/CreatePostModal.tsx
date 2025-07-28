@@ -82,20 +82,40 @@ export function CreatePostModal({ open, onOpenChange, onPostCreated }: CreatePos
       return;
     }
 
-    // In a real implementation, you would upload files to Cloudinary here
-    // For now, we'll use placeholder URLs
-    const mediaUrls = selectedFiles.map((_, index) => 
-      `https://via.placeholder.com/600x600?text=Post${index + 1}`
-    );
+    try {
+      // Upload files to Cloudinary
+      const formData = new FormData();
+      selectedFiles.forEach(file => {
+        formData.append('files', file);
+      });
 
-    const postData = {
-      caption: caption.trim() || null,
-      location: location.trim() || null,
-      media: mediaUrls,
-      mediaType: selectedFiles[0].type.startsWith('video/') ? 'video' : mediaUrls.length > 1 ? 'carousel' : 'image'
-    };
+      const uploadResponse = await fetch('/api/upload/media', {
+        method: 'POST',
+        body: formData,
+      });
 
-    createPostMutation.mutate(postData);
+      if (!uploadResponse.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const { media } = await uploadResponse.json();
+      const mediaUrls = media.map((item: any) => item.url);
+
+      const postData = {
+        caption: caption.trim() || null,
+        location: location.trim() || null,
+        media: mediaUrls,
+        mediaType: selectedFiles[0].type.startsWith('video/') ? 'video' : mediaUrls.length > 1 ? 'carousel' : 'image'
+      };
+
+      createPostMutation.mutate(postData);
+    } catch (error) {
+      toast({
+        title: "Upload Error",
+        description: "Failed to upload images. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const removeFile = (index: number) => {

@@ -47,7 +47,14 @@ export const getFeedPosts = asyncHandler(async (req: SessionRequest, res: Respon
 export const getPost = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
   const { id } = req.params;
   const userId = getUserId(req);
-  const post = await storage.getPost(parseInt(id));
+  
+  const postId = parseInt(id);
+  if (isNaN(postId)) {
+    res.status(400).json({ message: "Invalid post ID" });
+    return;
+  }
+  
+  const post = await storage.getPost(postId);
 
   if (!post) {
     res.status(404).json({ message: "Post not found" });
@@ -76,13 +83,19 @@ export const updatePost = asyncHandler(async (req: SessionRequest, res: Response
   const { id } = req.params;
   const userId = getUserId(req);
 
-  const post = await storage.getPost(parseInt(id));
+  const postId = parseInt(id);
+  if (isNaN(postId)) {
+    res.status(400).json({ message: "Invalid post ID" });
+    return;
+  }
+
+  const post = await storage.getPost(postId);
   if (!post || post.userId !== userId) {
     res.status(403).json({ message: "Unauthorized" });
     return;
   }
 
-  const updatedPost = await storage.updatePost(parseInt(id), req.body);
+  const updatedPost = await storage.updatePost(postId, req.body);
   res.json(updatedPost);
 });
 
@@ -90,13 +103,19 @@ export const deletePost = asyncHandler(async (req: SessionRequest, res: Response
   const { id } = req.params;
   const userId = getUserId(req);
 
-  const post = await storage.getPost(parseInt(id));
+  const postId = parseInt(id);
+  if (isNaN(postId)) {
+    res.status(400).json({ message: "Invalid post ID" });
+    return;
+  }
+
+  const post = await storage.getPost(postId);
   if (!post || post.userId !== userId) {
     res.status(403).json({ message: "Unauthorized" });
     return;
   }
 
-  await storage.deletePost(parseInt(id));
+  await storage.deletePost(postId);
   res.json({ success: true });
 });
 
@@ -104,20 +123,26 @@ export const likePost = asyncHandler(async (req: SessionRequest, res: Response):
   const { id } = req.params;
   const userId = getUserId(req);
 
-  const hasLiked = await storage.hasLikedPost(userId, parseInt(id));
-  if (hasLiked) {
-    await storage.unlikePost(userId, parseInt(id));
-  } else {
-    await storage.likePost(userId, parseInt(id));
+  const postId = parseInt(id);
+  if (isNaN(postId)) {
+    res.status(400).json({ message: "Invalid post ID" });
+    return;
+  }
 
-    const post = await storage.getPost(parseInt(id));
+  const hasLiked = await storage.hasLikedPost(userId, postId);
+  if (hasLiked) {
+    await storage.unlikePost(userId, postId);
+  } else {
+    await storage.likePost(userId, postId);
+
+    const post = await storage.getPost(postId);
     if (post && post.userId !== userId) {
       await storage.createNotification({
         userId: post.userId,
         fromUserId: userId,
         type: "like",
         content: null,
-        postId: parseInt(id),
+        postId: postId,
         commentId: null,
         isRead: false,
       });
@@ -131,11 +156,17 @@ export const savePost = asyncHandler(async (req: SessionRequest, res: Response):
   const { id } = req.params;
   const userId = getUserId(req);
 
-  const hasSaved = await storage.hasSavedPost(userId, parseInt(id));
+  const postId = parseInt(id);
+  if (isNaN(postId)) {
+    res.status(400).json({ message: "Invalid post ID" });
+    return;
+  }
+
+  const hasSaved = await storage.hasSavedPost(userId, postId);
   if (hasSaved) {
-    await storage.unsavePost(userId, parseInt(id));
+    await storage.unsavePost(userId, postId);
   } else {
-    await storage.savePost(userId, parseInt(id));
+    await storage.savePost(userId, postId);
   }
 
   res.json({ saved: !hasSaved });

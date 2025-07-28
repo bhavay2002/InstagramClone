@@ -4,10 +4,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { PostCard } from "@/components/PostCard";
 import { StoriesCarousel } from "@/components/StoriesCarousel";
 import { CreatePostModal } from "@/components/CreatePostModal";
+import { Header } from "@/components/Header";
+import { MobileNavigation } from "@/components/MobileNavigation";
 import { Sidebar } from "@/components/Sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Plus, Heart, MessageCircle } from "lucide-react";
+import { useLocation } from "wouter";
 import type { Post, User } from "@shared/schema";
 
 interface FeedPost extends Post {
@@ -20,6 +23,7 @@ export default function FeedPage() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const [createPostOpen, setCreatePostOpen] = useState(false);
+  const [, setLocation] = useLocation();
 
   const { data: posts = [], isLoading, refetch } = useQuery<FeedPost[]>({
     queryKey: ["/api/posts/feed"],
@@ -30,6 +34,18 @@ export default function FeedPage() {
     refetch();
     setCreatePostOpen(false);
   };
+
+  const handleNavigateHome = () => setLocation("/");
+  const handleNavigateExplore = () => setLocation("/explore");
+  const handleNavigateMessages = () => setLocation("/messages");
+  const handleNavigateProfile = () => {
+    if (user && typeof user === 'object' && user !== null && 'username' in user) {
+      setLocation(`/profile/${(user as User).username}`);
+    }
+  };
+  const handleOpenNotifications = () => setLocation("/notifications");
+  const handleOpenSearch = () => setLocation("/explore");
+  const handleNavigateReels = () => setLocation("/explore");
 
   if (isLoading) {
     return (
@@ -60,7 +76,35 @@ export default function FeedPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <Header
+        onNavigateHome={handleNavigateHome}
+        onNavigateExplore={handleNavigateExplore}
+        onNavigateMessages={handleNavigateMessages}
+        onNavigateProfile={handleNavigateProfile}
+        onOpenNotifications={handleOpenNotifications}
+      />
+
+      {/* Mobile Header */}
+      <header className="md:hidden fixed top-0 left-0 right-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 z-50">
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="text-xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 bg-clip-text text-transparent">
+              Instagram Clone
+            </div>
+            <div className="flex items-center space-x-4">
+              <button className="p-2" onClick={handleOpenNotifications}>
+                <Heart className="h-6 w-6" />
+              </button>
+              <button className="p-2" onClick={handleNavigateMessages}>
+                <MessageCircle className="h-6 w-6" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="pt-16 md:pt-20 pb-16 md:pb-0">
+        <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Feed */}
           <div className="lg:col-span-2 space-y-6">
@@ -160,6 +204,15 @@ export default function FeedPage() {
           )}
         </div>
       </div>
+      </div>
+
+      <MobileNavigation
+        onNavigateHome={handleNavigateHome}
+        onOpenSearch={handleOpenSearch}
+        onOpenCreatePost={() => setCreatePostOpen(true)}
+        onNavigateReels={handleNavigateReels}
+        onNavigateProfile={handleNavigateProfile}
+      />
 
       <CreatePostModal
         open={createPostOpen}

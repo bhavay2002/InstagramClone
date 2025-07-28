@@ -1,23 +1,23 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Home, Search, PlusSquare, Play } from 'lucide-react';
+import { Home, Search, PlusSquare, MessageCircle, Heart } from 'lucide-react';
 import { useAuthContext } from '@/context/AuthContext';
 
 interface MobileNavigationProps {
   onNavigateHome?: () => void;
-  onOpenSearch?: () => void;
-  onOpenCreatePost?: () => void;
-  onNavigateReels?: () => void;
+  onNavigateExplore?: () => void;
+  onNavigateMessages?: () => void;
   onNavigateProfile?: () => void;
+  onOpenNotifications?: () => void;
 }
 
 export function MobileNavigation({
   onNavigateHome,
-  onOpenSearch,
-  onOpenCreatePost,
-  onNavigateReels,
+  onNavigateExplore,
+  onNavigateMessages,
   onNavigateProfile,
+  onOpenNotifications,
 }: MobileNavigationProps) {
   const { user } = useAuthContext();
 
@@ -36,7 +36,7 @@ export function MobileNavigation({
         <Button
           variant="ghost"
           size="sm"
-          onClick={onOpenSearch}
+          onClick={onNavigateExplore}
           className="p-3"
         >
           <Search className="h-6 w-6" />
@@ -45,7 +45,7 @@ export function MobileNavigation({
         <Button
           variant="ghost"
           size="sm"
-          onClick={onOpenCreatePost}
+          onClick={() => {}} // TODO: Add create post functionality
           className="p-3"
         >
           <PlusSquare className="h-6 w-6" />
@@ -54,10 +54,19 @@ export function MobileNavigation({
         <Button
           variant="ghost"
           size="sm"
-          onClick={onNavigateReels}
+          onClick={onNavigateMessages}
           className="p-3"
         >
-          <Play className="h-6 w-6" />
+          <MessageCircle className="h-6 w-6" />
+        </Button>
+        
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onOpenNotifications}
+          className="p-3"
+        >
+          <Heart className="h-6 w-6" />
         </Button>
         
         <Button

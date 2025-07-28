@@ -15,6 +15,7 @@ import commentsRoutes from "./comments.routes";
 import messagesRoutes from "./messages.routes";
 import storiesRoutes from "./stories.routes";
 import notificationsRoutes from "./notifications.routes";
+import uploadRoutes from "./upload.routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication
@@ -69,6 +70,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/messages', messagesRoutes);
   app.use('/api/stories', storiesRoutes);
   app.use('/api/notifications', notificationsRoutes);
+  app.use('/api/upload', uploadRoutes);
   
   // Additional route for user posts (mounted under /api/users/:userId/posts)
   app.get('/api/users/:userId/posts', isAuthenticated, postsController.getUserPosts);

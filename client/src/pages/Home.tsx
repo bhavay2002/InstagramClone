@@ -22,7 +22,7 @@ export default function Home() {
   const [offset, setOffset] = useState(0);
   const limit = 10;
 
-  const { data: feedPosts, isLoading, hasNextPage } = useQuery<FeedPost[]>({
+  const { data: feedPosts, isLoading } = useQuery<FeedPost[]>({
     queryKey: ['/api/posts/feed', offset],
     queryFn: async () => {
       const response = await fetch(`/api/posts/feed?offset=${offset}&limit=${limit}`, {
@@ -31,14 +31,20 @@ export default function Home() {
       if (!response.ok) throw new Error('Failed to fetch feed');
       return response.json();
     },
-    onSuccess: (data) => {
-      if (offset === 0) {
-        setPosts(data);
-      } else {
-        setPosts(prev => [...prev, ...data]);
-      }
-    },
   });
+
+  // Handle data updates with useEffect instead of onSuccess
+  React.useEffect(() => {
+    if (feedPosts) {
+      if (offset === 0) {
+        setPosts(feedPosts);
+      } else {
+        setPosts(prev => [...prev, ...feedPosts]);
+      }
+    }
+  }, [feedPosts, offset]);
+
+  const hasNextPage = feedPosts && feedPosts.length === limit;
 
   const loadMore = () => {
     setOffset(prev => prev + limit);

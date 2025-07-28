@@ -38,7 +38,7 @@ export function Header({
 
   return (
     <>
-      <header className="hidden md:block fixed top-0 left-0 right-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 z-50">
+      <header className="fixed top-0 left-0 right-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 z-50">
         <div className="max-w-5xl mx-auto px-4 py-2">
           <div className="flex items-center justify-between">
             {/* Logo */}
@@ -51,8 +51,8 @@ export function Header({
               </button>
             </div>
 
-            {/* Search Bar */}
-            <div className="relative">
+            {/* Search Bar - Hidden on mobile */}
+            <div className="relative hidden md:block">
               <Input
                 type="text"
                 placeholder="Search users..."
@@ -63,8 +63,8 @@ export function Header({
               <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
             </div>
 
-            {/* Navigation Icons */}
-            <div className="flex items-center space-x-6">
+            {/* Navigation Icons - Hidden on mobile, use mobile nav instead */}
+            <div className="hidden md:flex items-center space-x-6">
               <Button
                 variant="ghost"
                 size="sm"
