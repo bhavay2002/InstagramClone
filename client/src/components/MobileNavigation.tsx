@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Home, Search, PlusSquare, MessageCircle, Heart } from 'lucide-react';
-import { useAuthContext } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 
 interface MobileNavigationProps {
   onNavigateHome?: () => void;
@@ -19,7 +19,7 @@ export function MobileNavigation({
   onNavigateProfile,
   onOpenNotifications,
 }: MobileNavigationProps) {
-  const { user } = useAuthContext();
+  const { user } = useAuth();
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 z-50">
@@ -76,9 +76,9 @@ export function MobileNavigation({
           className="p-2 rounded-full"
         >
           <Avatar className="h-8 w-8">
-            <AvatarImage src={user?.profileImageUrl || undefined} />
+            <AvatarImage src={(user as any)?.profileImageUrl || undefined} />
             <AvatarFallback>
-              {user?.username?.charAt(0).toUpperCase()}
+              {(user as any)?.username?.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
         </Button>

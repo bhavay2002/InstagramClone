@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
-import { useAuthContext } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import type { User } from '@shared/schema';
 
@@ -14,12 +14,12 @@ interface SidebarProps {
 }
 
 export function Sidebar({ onSwitchAccount, onSeeAllSuggestions }: SidebarProps) {
-  const { user } = useAuthContext();
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: suggestions } = useQuery<User[]>({
-    queryKey: [`/api/users/${user?.id}/suggestions`],
+    queryKey: [`/api/users/${(user as any)?.id}/suggestions`],
     enabled: !!user,
   });
 
@@ -28,7 +28,7 @@ export function Sidebar({ onSwitchAccount, onSeeAllSuggestions }: SidebarProps) 
       await apiRequest('POST', `/api/users/${userId}/follow`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${user?.id}/suggestions`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${(user as any)?.id}/suggestions`] });
       toast({
         title: "Success",
         description: "User followed successfully",
@@ -53,19 +53,19 @@ export function Sidebar({ onSwitchAccount, onSeeAllSuggestions }: SidebarProps) 
         {/* User Profile Card */}
         <div className="flex items-center space-x-3">
           <Avatar className="h-14 w-14">
-            <AvatarImage src={user?.profileImageUrl || undefined} />
+            <AvatarImage src={(user as any)?.profileImageUrl || undefined} />
             <AvatarFallback>
-              {user?.username?.charAt(0).toUpperCase()}
+              {(user as any)?.username?.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1">
             <div className="font-semibold text-sm text-gray-900 dark:text-white">
-              {user?.username}
+              {(user as any)?.username}
             </div>
             <div className="text-sm text-gray-500">
-              {user?.firstName && user?.lastName 
-                ? `${user.firstName} ${user.lastName}`
-                : user?.username
+              {(user as any)?.firstName && (user as any)?.lastName 
+                ? `${(user as any).firstName} ${(user as any).lastName}`
+                : (user as any)?.username
               }
             </div>
           </div>

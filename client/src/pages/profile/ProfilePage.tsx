@@ -32,6 +32,7 @@ import {
   Users
 } from "lucide-react";
 import type { User, Post } from "@shared/schema";
+import EditProfilePage from "./EditProfilePage"
 
 interface ProfilePost extends Post {
   user: User;
@@ -48,6 +49,7 @@ export default function ProfilePage() {
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState("posts");
   const [selectedPost, setSelectedPost] = useState<ProfilePost | null>(null);
+  const [showEditProfile, setShowEditProfile] = useState(false);
   
   const username = params?.username || (currentUser as User)?.username;
   const isOwnProfile = username === (currentUser as User)?.username;
@@ -255,6 +257,7 @@ export default function ProfilePage() {
                       variant="outline"
                       size="sm"
                       className="px-6 border-gray-300 dark:border-gray-600"
+                      onClick={() => setShowEditProfile(true)}
                     >
                       Edit profile
                     </Button>
@@ -560,6 +563,14 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
+
+      {/* Edit Profile Modal/Page */}
+      {showEditProfile && (
+        <EditProfilePage
+          isModal={!isMobile}
+          onClose={() => setShowEditProfile(false)}
+        />
+      )}
     </div>
   );
 }
