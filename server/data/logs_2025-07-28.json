@@ -1,0 +1,37 @@
+[
+  {
+    "timestamp": "2025-07-28T15:45:00.000Z",
+    "event": "user_login",
+    "data": {
+      "userId": "bhavay_user",
+      "ip": "127.0.0.1",
+      "userAgent": "Mozilla/5.0..."
+    }
+  },
+  {
+    "timestamp": "2025-07-28T15:50:00.000Z",
+    "event": "message_sent",
+    "data": {
+      "userId": "bhavay_user",
+      "receiverId": "user1",
+      "messageLength": 65
+    }
+  },
+  {
+    "timestamp": "2025-07-28T15:55:00.000Z",
+    "event": "post_liked",
+    "data": {
+      "userId": "bhavay_user",
+      "postId": 1,
+      "action": "like"
+    }
+  },
+  {
+    "timestamp": "2025-07-28T16:00:00.000Z",
+    "event": "preferences_updated",
+    "data": {
+      "userId": "bhavay_user",
+      "preferences": ["theme", "notifications"]
+    }
+  }
+]

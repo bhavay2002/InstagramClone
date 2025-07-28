@@ -1,0 +1,31 @@
+{
+  "data": {
+    "postsThisWeek": 3,
+    "likesReceived": 75,
+    "messagesCount": 12,
+    "profileViews": 156,
+    "engagementRate": 8.5,
+    "topPost": {
+      "id": 12,
+      "likes": 32,
+      "caption": "Beautiful sunset from my balcony today 🌅"
+    },
+    "followersGrowth": {
+      "thisWeek": 5,
+      "thisMonth": 18,
+      "percentage": 12.5
+    },
+    "messageStats": {
+      "sent": 8,
+      "received": 4,
+      "activeConversations": 5
+    },
+    "contentPerformance": {
+      "averageLikes": 25,
+      "averageComments": 5,
+      "bestPostingTime": "18:00",
+      "topHashtags": ["#coding", "#sunset", "#coffee"]
+    }
+  },
+  "expires": 1753720800000
+}
