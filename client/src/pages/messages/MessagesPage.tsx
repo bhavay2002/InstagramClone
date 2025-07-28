@@ -333,11 +333,11 @@ export default function MessagesPage() {
                 {messages.map((message) => (
                   <div
                     key={message.id}
-                    className={`flex ${message.senderId === user?.id ? "justify-end" : "justify-start"}`}
+                    className={`flex ${message.senderId === (user as User)?.id ? "justify-end" : "justify-start"}`}
                   >
                     <div
                       className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                        message.senderId === user?.id
+                        message.senderId === (user as User)?.id
                           ? "bg-blue-500 text-white"
                           : "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white"
                       }`}
