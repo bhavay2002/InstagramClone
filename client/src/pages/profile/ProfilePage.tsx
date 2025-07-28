@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useParams } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -36,50 +36,40 @@ export default function ProfilePage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("posts");
   
-  const username = params.username || currentUser?.username || "";
-  const isOwnProfile = username === (currentUser?.username || "");
+  const username = params?.username || currentUser?.username;
+  const isOwnProfile = username === currentUser?.username;
 
   const { data: profileUser, isLoading: userLoading, error: userError } = useQuery<User>({
     queryKey: [`/api/users/${username}`],
     enabled: !!username,
   });
 
-  // Handle user query error
-  if (userError) {
-    if (isUnauthorizedError(userError)) {
-      toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
-        variant: "destructive",
-      });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
-    } else {
+  // Handle errors in useEffect instead of onError
+  React.useEffect(() => {
+    if (userError && userError instanceof Error) {
+      if (isUnauthorizedError(userError)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
       toast({
         title: "Error",
         description: "Failed to load profile",
         variant: "destructive",
       });
     }
-  }
+  }, [userError, toast]);
 
-  const { data: posts = [], isLoading: postsLoading, error: postsError } = useQuery<ProfilePost[]>({
+  const { data: posts = [], isLoading: postsLoading } = useQuery<ProfilePost[]>({
     queryKey: [`/api/users/${username}/posts`],
     enabled: !!username,
   });
-
-  // Handle posts query error
-  if (postsError && isUnauthorizedError(postsError)) {
-    toast({
-      title: "Unauthorized",
-      description: "You are logged out. Logging in again...",
-      variant: "destructive",
-    });
-    setTimeout(() => {
-      window.location.href = "/api/login";
-    }, 500);
-  }
 
   const { data: followers = [] } = useQuery<User[]>({
     queryKey: [`/api/users/${username}/followers`],
@@ -103,18 +93,15 @@ export default function ProfilePage() {
 
   const followMutation = useMutation({
     mutationFn: async () => {
-      if (isFollowing) {
-        await apiRequest(`/api/users/${username}/unfollow`, { method: "POST" });
-      } else {
-        await apiRequest(`/api/users/${username}/follow`, { method: "POST" });
-      }
+      const method = isFollowing ? "DELETE" : "POST";
+      return await apiRequest(method, `/api/users/${username}/follow`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/users/${username}/following-status`] });
       queryClient.invalidateQueries({ queryKey: [`/api/users/${username}/followers`] });
       toast({
         title: isFollowing ? "Unfollowed" : "Following",
-        description: `You ${isFollowing ? "unfollowed" : "are now following"} ${profileUser?.username || "this user"}`,
+        description: `You ${isFollowing ? "unfollowed" : "are now following"} ${profileUser?.firstName || "this user"}`,
       });
     },
     onError: (error: Error) => {
@@ -245,7 +232,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="text-center">
                     <div className="font-bold text-gray-900 dark:text-white">
-                      {followers?.length || 0}
+                      {followers.length}
                     </div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">
                       Followers
@@ -253,7 +240,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="text-center">
                     <div className="font-bold text-gray-900 dark:text-white">
-                      {following?.length || 0}
+                      {following.length}
                     </div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">
                       Following
@@ -261,14 +248,9 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {profileUser.username && (
+                {profileUser.email && (
                   <p className="text-gray-600 dark:text-gray-400 text-sm">
-                    @{profileUser.username}
-                  </p>
-                )}
-                {profileUser.bio && (
-                  <p className="text-gray-700 dark:text-gray-300 text-sm mt-2">
-                    {profileUser.bio}
+                    {profileUser.email}
                   </p>
                 )}
               </div>
@@ -316,7 +298,7 @@ export default function ProfilePage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {posts.map((post: ProfilePost) => (
+                {posts.map((post) => (
                   <Card key={post.id} className="overflow-hidden group cursor-pointer hover:shadow-lg transition-shadow">
                     <div className="aspect-square relative">
                       {post.mediaType === "video" ? (

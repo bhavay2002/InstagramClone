@@ -6,7 +6,7 @@ export { default as SignUpPage } from "./auth/SignUpPage";
 
 // Main Pages
 export { default as FeedPage } from "./feed/FeedPage";
-export { default as ProfilePage } from "./Profile";
+export { default as ProfilePage } from "./profile/ProfilePage";
 export { default as MessagesPage } from "./messages/MessagesPage";
 export { default as ExplorePage } from "./explore/ExplorePage";
 export { default as NotificationsPage } from "./notifications/NotificationsPage";
@@ -15,5 +15,5 @@ export { default as NotificationsPage } from "./notifications/NotificationsPage"
 export { default as Home } from "./Home";
 export { default as Landing } from "./Landing";
 export { default as Messages } from "./Messages";
-export { default as Profile } from "./Profile";
+// Profile moved to profile/ProfilePage.tsx
 export { default as NotFound } from "./not-found";
