@@ -44,35 +44,11 @@ export default function MessagesPage() {
     queryKey: ["/api/messages/conversations"],
   });
 
-  // Handle conversations error
-  if (conversationsError && isUnauthorizedError(conversationsError)) {
-    toast({
-      title: "Unauthorized",
-      description: "You are logged out. Logging in again...",
-      variant: "destructive",
-    });
-    setTimeout(() => {
-      window.location.href = "/api/login";
-    }, 500);
-  }
-
   // Fetch messages for selected conversation
   const { data: messages = [], isLoading: messagesLoading, error: messagesError } = useQuery<Message[]>({
     queryKey: [`/api/messages/${selectedConversation?.id}`],
     enabled: !!selectedConversation,
   });
-
-  // Handle messages error
-  if (messagesError && isUnauthorizedError(messagesError)) {
-    toast({
-      title: "Unauthorized",
-      description: "You are logged out. Logging in again...",
-      variant: "destructive",
-    });
-    setTimeout(() => {
-      window.location.href = "/api/login";
-    }, 500);
-  }
 
   // Search users
   const { data: searchResults = [], error: searchError } = useQuery<User[]>({
@@ -80,30 +56,12 @@ export default function MessagesPage() {
     enabled: searchQuery.length > 0,
   });
 
-  // Handle search error
-  if (searchError && isUnauthorizedError(searchError)) {
-    toast({
-      title: "Unauthorized",
-      description: "You are logged out. Logging in again...",
-      variant: "destructive",
-    });
-    setTimeout(() => {
-      window.location.href = "/api/login";
-    }, 500);
-  }
-
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async ({ receiverId, content }: { receiverId: string; content: string }) => {
-      await apiRequest("/api/messages", {
-        method: "POST",
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          receiverId,
-          content,
-        }),
+      await apiRequest("POST", "/api/messages", {
+        receiverId,
+        content,
       });
     },
     onSuccess: () => {
@@ -111,41 +69,21 @@ export default function MessagesPage() {
       queryClient.invalidateQueries({ queryKey: [`/api/messages/${selectedConversation?.id}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/messages/conversations"] });
     },
-    onError: (error: Error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
-      toast({
-        title: "Error",
-        description: "Failed to send message",
-        variant: "destructive",
-      });
-    },
   });
 
   // WebSocket setup
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user) return;
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/ws`;
     const socket = new WebSocket(wsUrl);
 
     socket.onopen = () => {
-      if (user?.id) {
-        socket.send(JSON.stringify({
-          type: 'auth',
-          userId: user.id
-        }));
-      }
+      socket.send(JSON.stringify({
+        type: 'auth',
+        userId: (user as User)?.id || ''
+      }));
     };
 
     socket.onmessage = (event) => {
@@ -163,6 +101,60 @@ export default function MessagesPage() {
     };
   }, [user, queryClient]);
 
+  // Error handling for queries
+  useEffect(() => {
+    if (conversationsError && conversationsError instanceof Error) {
+      if (isUnauthorizedError(conversationsError)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+    }
+  }, [conversationsError, toast]);
+
+  useEffect(() => {
+    if (messagesError && messagesError instanceof Error) {
+      if (isUnauthorizedError(messagesError)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+    }
+  }, [messagesError, toast]);
+
+  useEffect(() => {
+    if (sendMessageMutation.error && sendMessageMutation.error instanceof Error) {
+      if (isUnauthorizedError(sendMessageMutation.error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to send message",
+        variant: "destructive",
+      });
+    }
+  }, [sendMessageMutation.error, toast]);
+
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -175,14 +167,14 @@ export default function MessagesPage() {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({
         type: 'message',
-        receiverId: selectedConversation.id,
+        receiverId: selectedConversation?.id,
         content: messageText.trim()
       }));
     }
 
     // Also send via API for persistence
     sendMessageMutation.mutate({
-      receiverId: selectedConversation.id,
+      receiverId: selectedConversation?.id || '',
       content: messageText.trim(),
     });
   };
@@ -233,7 +225,7 @@ export default function MessagesPage() {
                 <div className="p-4 space-y-2">
                   {searchResults.map((searchUser) => (
                     <div
-                      key={searchUser.id}
+                      key={searchUser?.id}
                       onClick={() => handleStartConversation(searchUser)}
                       className="flex items-center space-x-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer"
                     >
@@ -262,7 +254,7 @@ export default function MessagesPage() {
                 <div className="divide-y divide-gray-200 dark:divide-gray-700">
                   {conversations.map(({ user: conversationUser, lastMessage }) => (
                     <div
-                      key={conversationUser.id}
+                      key={conversationUser?.id}
                       onClick={() => setSelectedConversation(conversationUser)}
                       className="flex items-center space-x-3 p-4 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
                     >
@@ -288,7 +280,7 @@ export default function MessagesPage() {
                           {lastMessage.content}
                         </div>
                       </div>
-                      {!lastMessage.isRead && lastMessage.senderId !== user?.id && (
+                      {!lastMessage.isRead && lastMessage.senderId !== (user as User)?.id && (
                         <Badge className="bg-blue-500">New</Badge>
                       )}
                     </div>
@@ -311,16 +303,16 @@ export default function MessagesPage() {
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <Avatar>
-                  <AvatarImage src={selectedConversation.profileImageUrl || ""} alt={selectedConversation.firstName || "User"} />
+                  <AvatarImage src={selectedConversation?.profileImageUrl || ""} alt={selectedConversation?.firstName || "User"} />
                   <AvatarFallback>
-                    {(selectedConversation.firstName?.[0] || selectedConversation.email?.[0] || "U").toUpperCase()}
+                    {(selectedConversation?.firstName?.[0] || selectedConversation?.email?.[0] || "U").toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
                   <div className="font-medium text-gray-900 dark:text-white">
-                    {selectedConversation.firstName && selectedConversation.lastName 
+                    {selectedConversation?.firstName && selectedConversation?.lastName 
                       ? `${selectedConversation.firstName} ${selectedConversation.lastName}`
-                      : selectedConversation.email?.split('@')[0]
+                      : selectedConversation?.email?.split('@')[0]
                     }
                   </div>
                   <div className="text-sm text-gray-500 dark:text-gray-400">Online</div>
@@ -443,10 +435,10 @@ export default function MessagesPage() {
                   <div className="divide-y divide-gray-200 dark:divide-gray-700">
                     {conversations.map(({ user: conversationUser, lastMessage }) => (
                       <div
-                        key={conversationUser.id}
+                        key={conversationUser?.id}
                         onClick={() => setSelectedConversation(conversationUser)}
                         className={`flex items-center space-x-3 p-4 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer ${
-                          selectedConversation?.id === conversationUser.id 
+                          selectedConversation?.id === conversationUser?.id 
                             ? "bg-gray-100 dark:bg-gray-700" 
                             : ""
                         }`}
@@ -473,7 +465,7 @@ export default function MessagesPage() {
                             {lastMessage.content}
                           </div>
                         </div>
-                        {!lastMessage.isRead && lastMessage.senderId !== user?.id && (
+                        {!lastMessage.isRead && lastMessage.senderId !== (user as User)?.id && (
                           <Badge className="bg-blue-500">New</Badge>
                         )}
                       </div>
@@ -492,16 +484,16 @@ export default function MessagesPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <Avatar>
-                        <AvatarImage src={selectedConversation.profileImageUrl || ""} alt={selectedConversation.firstName || "User"} />
+                        <AvatarImage src={selectedConversation?.profileImageUrl || ""} alt={selectedConversation?.firstName || "User"} />
                         <AvatarFallback>
-                          {(selectedConversation.firstName?.[0] || selectedConversation.email?.[0] || "U").toUpperCase()}
+                          {(selectedConversation?.firstName?.[0] || selectedConversation?.email?.[0] || "U").toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div>
                         <div className="font-medium text-gray-900 dark:text-white">
-                          {selectedConversation.firstName && selectedConversation.lastName 
+                          {selectedConversation?.firstName && selectedConversation?.lastName 
                             ? `${selectedConversation.firstName} ${selectedConversation.lastName}`
-                            : selectedConversation.email?.split('@')[0]
+                            : selectedConversation?.email?.split('@')[0]
                           }
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">Online</div>
@@ -526,19 +518,19 @@ export default function MessagesPage() {
                     <div className="space-y-4">
                       {messages.map((message) => (
                         <div
-                          key={message.id}
-                          className={`flex ${message.senderId === user?.id ? "justify-end" : "justify-start"}`}
+                          key={message?.id}
+                          className={`flex ${message?.senderId === (user as User)?.id ? "justify-end" : "justify-start"}`}
                         >
                           <div
                             className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                              message.senderId === user?.id
+                              message?.senderId === (user as User)?.id
                                 ? "bg-blue-500 text-white"
                                 : "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white"
                             }`}
                           >
-                            <div>{message.content}</div>
+                            <div>{message?.content}</div>
                             <div className="text-xs opacity-70 mt-1">
-                              {formatMessageTime(message.createdAt || new Date())}
+                              {formatMessageTime(message?.createdAt || new Date())}
                             </div>
                           </div>
                         </div>

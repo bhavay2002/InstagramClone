@@ -69,42 +69,16 @@ export default function Messages() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [selectedUserId]);
 
-  const { data: conversations, isLoading: conversationsLoading } = useQuery<{ user: User; lastMessage: Message }[]>({
+  const { data: conversations, isLoading: conversationsLoading, error: conversationsError } = useQuery<{ user: User; lastMessage: Message }[]>({
     queryKey: ['/api/messages/conversations'],
     enabled: !!currentUser,
     retry: false,
-    onError: (error: Error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
-    },
   });
 
-  const { data: messages, isLoading: messagesLoading } = useQuery<Message[]>({
+  const { data: messages, isLoading: messagesLoading, error: messagesError } = useQuery<Message[]>({
     queryKey: [`/api/messages/${selectedUserId}`],
     enabled: !!selectedUserId && !!currentUser,
     retry: false,
-    onError: (error: Error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
-    },
   });
 
   const { data: selectedUser } = useQuery<User>({
@@ -113,7 +87,7 @@ export default function Messages() {
     retry: false,
   });
 
-  const { data: searchResults } = useQuery<User[]>({
+  const { data: searchResults, error: searchError } = useQuery<User[]>({
     queryKey: [`/api/users/search?q=${searchQuery}`],
     enabled: searchQuery.length > 0,
     retry: false,
@@ -144,24 +118,7 @@ export default function Messages() {
       queryClient.invalidateQueries({ queryKey: [`/api/messages/${selectedUserId}`] });
       queryClient.invalidateQueries({ queryKey: ['/api/messages/conversations'] });
     },
-    onError: (error: Error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
-      toast({
-        title: "Error",
-        description: "Failed to send message",
-        variant: "destructive",
-      });
-    },
+
   });
 
   const markAsReadMutation = useMutation({
@@ -175,6 +132,39 @@ export default function Messages() {
       markAsReadMutation.mutate();
     }
   }, [selectedUserId, currentUser]);
+
+  // Error handling for queries
+  React.useEffect(() => {
+    if (conversationsError && conversationsError instanceof Error) {
+      if (isUnauthorizedError(conversationsError)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+    }
+  }, [conversationsError, toast]);
+
+  React.useEffect(() => {
+    if (messagesError && messagesError instanceof Error) {
+      if (isUnauthorizedError(messagesError)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+    }
+  }, [messagesError, toast]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -299,7 +289,7 @@ export default function Messages() {
                                 {user.username}
                               </div>
                               <div className="text-xs text-gray-500">
-                                {formatDistanceToNow(new Date(lastMessage.createdAt), { addSuffix: false })}
+                                {formatDistanceToNow(new Date(lastMessage.createdAt || new Date()), { addSuffix: false })}
                               </div>
                             </div>
                             <div className="text-sm text-gray-600 dark:text-gray-400 truncate">
@@ -398,7 +388,7 @@ export default function Messages() {
                                   ? 'text-blue-100'
                                   : 'text-gray-500'
                               }`}>
-                                {formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}
+                                {formatDistanceToNow(new Date(message.createdAt || new Date()), { addSuffix: true })}
                               </p>
                             </div>
                           </div>
@@ -450,9 +440,6 @@ export default function Messages() {
 
       <MobileNavigation
         onNavigateHome={() => window.location.href = '/'}
-        onOpenSearch={() => console.log('Open search')}
-        onOpenCreatePost={() => console.log('Create post')}
-        onNavigateReels={() => console.log('Navigate to reels')}
         onNavigateProfile={() => window.location.href = `/profile/${currentUser?.username}`}
       />
     </div>

@@ -36,8 +36,8 @@ export default function ProfilePage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("posts");
   
-  const username = params?.username || currentUser?.username;
-  const isOwnProfile = username === currentUser?.username;
+  const username = params?.username || (currentUser as User)?.username;
+  const isOwnProfile = username === (currentUser as User)?.username;
 
   const { data: profileUser, isLoading: userLoading, error: userError } = useQuery<User>({
     queryKey: [`/api/users/${username}`],
