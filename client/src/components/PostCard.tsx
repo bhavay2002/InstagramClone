@@ -242,7 +242,7 @@ export function PostCard({ post, onOpenComments, onOpenProfile }: PostCardProps)
         )}
 
         {/* Comments */}
-        {post.commentsCount > 0 && (
+        {(post.commentsCount ?? 0) > 0 && (
           <button
             onClick={() => onOpenComments?.(post.id)}
             className="text-sm text-gray-500 mb-2 hover:underline"
@@ -253,7 +253,7 @@ export function PostCard({ post, onOpenComments, onOpenProfile }: PostCardProps)
 
         {/* Time */}
         <div className="text-xs text-gray-500">
-          {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+          {post.createdAt ? formatDistanceToNow(new Date(post.createdAt), { addSuffix: true }) : 'Just now'}
         </div>
       </div>
 

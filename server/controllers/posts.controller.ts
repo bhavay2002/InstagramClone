@@ -75,8 +75,36 @@ export const getPost = asyncHandler(async (req: SessionRequest, res: Response): 
 
 export const getUserPosts = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
   const { userId } = req.params;
-  const posts = await storage.getUserPosts(userId);
-  res.json(posts);
+  const currentUserId = getUserId(req);
+  
+  // Get posts for the user (userId could be username or user ID)
+  let targetUserId = userId;
+  
+  // Check if userId is actually a username
+  if (userId && !userId.includes('-')) { // User IDs typically contain hyphens
+    const user = await storage.getUserByUsername(userId);
+    if (user) {
+      targetUserId = user.id;
+    }
+  }
+  
+  const posts = await storage.getUserPosts(targetUserId);
+  
+  // Enrich posts with user data and interaction status
+  const enrichedPosts = await Promise.all(posts.map(async (post: any) => {
+    const postUser = await storage.getUser(post.userId);
+    const hasLiked = await storage.hasLikedPost(currentUserId, post.id);
+    const hasSaved = await storage.hasSavedPost(currentUserId, post.id);
+
+    return {
+      ...post,
+      user: postUser,
+      hasLiked,
+      hasSaved,
+    };
+  }));
+
+  res.json(enrichedPosts);
 });
 
 export const updatePost = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {

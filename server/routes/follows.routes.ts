@@ -10,5 +10,6 @@ router.delete('/:userId/follow', isAuthenticated, followsController.unfollowUser
 router.get('/:userId/followers', isAuthenticated, followsController.getFollowers);
 router.get('/:userId/following', isAuthenticated, followsController.getFollowing);
 router.get('/:userId/following/:targetUserId', isAuthenticated, followsController.checkFollowStatus);
+router.get('/:username/following-status', isAuthenticated, followsController.checkCurrentUserFollowStatus);
 
 export default router;

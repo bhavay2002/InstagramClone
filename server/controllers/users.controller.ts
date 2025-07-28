@@ -77,11 +77,36 @@ export const getSavedPosts = asyncHandler(async (req: SessionRequest, res: Respo
     return;
   }
 
-  if (userId !== currentUserId) {
+  // Handle username or user ID
+  let targetUserId = userId;
+  if (userId && !userId.includes('-')) {
+    const user = await storage.getUserByUsername(userId);
+    if (user) {
+      targetUserId = user.id;
+    }
+  }
+
+  // Only allow users to view their own saved posts
+  if (targetUserId !== currentUserId) {
     res.status(403).json({ message: "Unauthorized" });
     return;
   }
 
-  const savedPosts = await storage.getSavedPosts(userId);
-  res.json(savedPosts);
+  const savedPosts = await storage.getSavedPosts(targetUserId);
+  
+  // Enrich posts with user data and interaction status
+  const enrichedPosts = await Promise.all(savedPosts.map(async (post: any) => {
+    const postUser = await storage.getUser(post.userId);
+    const hasLiked = await storage.hasLikedPost(currentUserId, post.id);
+    const hasSaved = true; // Obviously saved since it's in the saved posts
+
+    return {
+      ...post,
+      user: postUser,
+      hasLiked,
+      hasSaved,
+    };
+  }));
+
+  res.json(enrichedPosts);
 });
