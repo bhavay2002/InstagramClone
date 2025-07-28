@@ -4,17 +4,26 @@ import { storage } from "../storage";
 import { insertPostSchema } from "@shared/schema";
 import { z } from "zod";
 import asyncHandler from "express-async-handler";
+import { getUserId } from "../utils/getUserId";
 
 export const createPost = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
-  const userId = (req as any).user?.claims?.sub!;
-  const postData = insertPostSchema.parse({ ...req.body, userId });
+  const userId = getUserId(req);
+  
+  // Create post data with userId from session, not from request body
+  const postData = insertPostSchema.parse({ 
+    userId,
+    caption: req.body.caption,
+    media: req.body.media,
+    mediaType: req.body.mediaType,
+    location: req.body.location || null
+  });
 
   const post = await storage.createPost(postData);
   res.json(post);
 });
 
 export const getFeedPosts = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
-  const userId = (req as any).user?.claims?.sub!;
+  const userId = getUserId(req);
   const offset = parseInt(req.query.offset as string) || 0;
   const limit = parseInt(req.query.limit as string) || 10;
 
@@ -37,7 +46,7 @@ export const getFeedPosts = asyncHandler(async (req: SessionRequest, res: Respon
 
 export const getPost = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
   const { id } = req.params;
-  const userId = (req as any).user?.claims?.sub!;
+  const userId = getUserId(req);
   const post = await storage.getPost(parseInt(id));
 
   if (!post) {
@@ -65,7 +74,7 @@ export const getUserPosts = asyncHandler(async (req: SessionRequest, res: Respon
 
 export const updatePost = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
   const { id } = req.params;
-  const userId = (req as any).user?.claims?.sub!;
+  const userId = getUserId(req);
 
   const post = await storage.getPost(parseInt(id));
   if (!post || post.userId !== userId) {
@@ -79,7 +88,7 @@ export const updatePost = asyncHandler(async (req: SessionRequest, res: Response
 
 export const deletePost = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
   const { id } = req.params;
-  const userId = (req as any).user?.claims?.sub!;
+  const userId = getUserId(req);
 
   const post = await storage.getPost(parseInt(id));
   if (!post || post.userId !== userId) {
@@ -93,7 +102,7 @@ export const deletePost = asyncHandler(async (req: SessionRequest, res: Response
 
 export const likePost = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
   const { id } = req.params;
-  const userId = (req as any).user?.claims?.sub!;
+  const userId = getUserId(req);
 
   const hasLiked = await storage.hasLikedPost(userId, parseInt(id));
   if (hasLiked) {
@@ -120,7 +129,7 @@ export const likePost = asyncHandler(async (req: SessionRequest, res: Response):
 
 export const savePost = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
   const { id } = req.params;
-  const userId = (req as any).user?.claims?.sub!;
+  const userId = getUserId(req);
 
   const hasSaved = await storage.hasSavedPost(userId, parseInt(id));
   if (hasSaved) {

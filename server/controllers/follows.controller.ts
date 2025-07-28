@@ -1,10 +1,11 @@
 import { Request, Response } from "express";
 import { storage } from "../storage";
 import asyncHandler from "express-async-handler";
+import { getUserId } from "../utils/getUserId";
 
 export const followUser = asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.params;
-  const followerId = (req as any).user?.claims?.sub;
+  const followerId = getUserId(req);
 
   if (userId === followerId) {
     res.status(400).json({ message: "Cannot follow yourself" });
@@ -28,7 +29,7 @@ export const followUser = asyncHandler(async (req: Request, res: Response) => {
 
 export const unfollowUser = asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.params;
-  const followerId = (req as any).user?.claims?.sub;
+  const followerId = getUserId(req);
 
   await storage.unfollowUser(followerId, userId);
   res.json({ success: true });

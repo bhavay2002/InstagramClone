@@ -6,8 +6,8 @@ import * as postsController from "../controllers/posts.controller";
 
 const router = Router();
 
-// Post routes
-router.post('/', isAuthenticated, validate(insertPostSchema), postsController.createPost);
+// Post routes - don't validate userId since it comes from session
+router.post('/', isAuthenticated, postsController.createPost);
 router.get('/feed', isAuthenticated, postsController.getFeedPosts);
 router.get('/:id', isAuthenticated, postsController.getPost);
 router.put('/:id', isAuthenticated, postsController.updatePost);

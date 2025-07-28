@@ -278,6 +278,11 @@ export const insertPostSchema = createInsertSchema(posts).omit({
   createdAt: true,
 });
 
+// API request schema that excludes userId (extracted from session)
+export const createPostRequestSchema = insertPostSchema.omit({
+  userId: true,
+});
+
 export const insertCommentSchema = createInsertSchema(comments).omit({
   id: true,
   likesCount: true,

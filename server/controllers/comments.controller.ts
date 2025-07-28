@@ -3,15 +3,28 @@ import { storage } from "../storage";
 import { insertCommentSchema } from "@shared/schema";
 import { z } from "zod";
 import asyncHandler from "express-async-handler";
+import { getUserId } from "../utils/getUserId";
 
 export const createComment = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const userId = (req as any).user.claims.sub;
-  const commentData = insertCommentSchema.parse({
-    ...req.body,
+  const userId = getUserId(req);
+  
+  console.log("Comment creation - postId:", id, "userId:", userId, "content:", req.body.content);
+  
+  // Validate content is provided
+  if (!req.body.content || typeof req.body.content !== 'string' || req.body.content.trim() === '') {
+    return res.status(400).json({ message: "Comment content is required" });
+  }
+  
+  // Create comment data manually to avoid schema issues
+  const commentData = {
     postId: parseInt(id),
-    userId
-  });
+    userId,
+    content: req.body.content.trim(),
+    parentId: req.body.parentId || null
+  };
+  
+  console.log("Comment data to insert:", commentData);
 
   const comment = await storage.createComment(commentData);
 
@@ -48,7 +61,7 @@ export const getPostComments = asyncHandler(async (req: Request, res: Response) 
 export const updateComment = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const { content } = req.body;
-  const userId = (req as any).user.claims.sub;
+  const userId = getUserId(req);
 
   const comment = await storage.updateComment(parseInt(id), content);
   res.json(comment);
@@ -62,7 +75,7 @@ export const deleteComment = asyncHandler(async (req: Request, res: Response) =>
 
 export const likeComment = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const userId = (req as any).user.claims.sub;
+  const userId = getUserId(req);
 
   const hasLiked = await storage.hasLikedComment(userId, parseInt(id));
   if (hasLiked) {

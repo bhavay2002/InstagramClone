@@ -7,7 +7,7 @@ import * as commentsController from "../controllers/comments.controller";
 const router = Router();
 
 // Comment routes (these will be mounted under /api so paths become /api/posts/:id/comments)
-router.post('/posts/:id/comments', isAuthenticated, validate(insertCommentSchema), commentsController.createComment);
+router.post('/posts/:id/comments', isAuthenticated, commentsController.createComment);
 router.get('/posts/:id/comments', isAuthenticated, commentsController.getPostComments);
 router.put('/:id', isAuthenticated, commentsController.updateComment);
 router.delete('/:id', isAuthenticated, commentsController.deleteComment);
