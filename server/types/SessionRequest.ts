@@ -1,17 +1,15 @@
-// types/session-request.ts
 import type { Request } from "express";
 import type { Session } from "express-session";
-import type { User } from "@shared/schema";
-
+import type { SessionUser } from "./express-session"; 
 
 export interface SessionRequest extends Request {
   session: Session & {
-    user?: User;
+    user?: SessionUser;
   };
 }
 
 export type AuthenticatedRequest = SessionRequest & {
   session: Session & {
-    user: User; // Non-optional here
+    user: SessionUser; // Non-optional here
   };
 };

@@ -1,9 +1,15 @@
-// types/express-session.d.ts
-import 'express-session';
-import type { User } from './user';
+import "express-session";
 
+export interface SessionUser {
+  id: string;
+  email: string | null;
+  username: string;
+  firstName: string | null;
+  lastName: string | null;
+  profileImageUrl: string | null;
+}
 
-declare module 'express-session' {
+declare module "express-session" {
   interface SessionData {
     user?: SessionUser;
   }

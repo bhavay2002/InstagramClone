@@ -5,9 +5,17 @@ export interface User {
   id: string;
   email: string | null;
   username: string;
-  firstName: string;
-  lastName: string;
+  firstName: string | null;
+  lastName: string | null;
   profileImageUrl: string | null;
+  bio: string | null;
+  isPrivate: boolean| null;
+  followerCount: number;
+  followingCount: number;
+  postCount: number;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+  password?: string | null; 
 }
 
 export interface SessionRequest extends Request {
