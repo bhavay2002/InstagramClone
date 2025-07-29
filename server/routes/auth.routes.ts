@@ -11,6 +11,9 @@ router.post("/register", validate(insertUserSchema.omit({ id: true })), authCont
 // Login route
 router.post("/login", authController.login);
 
+// Get current user route
+router.get("/user", authController.getCurrentUser);
+
 // Logout route
 router.post("/logout", authController.logout);
 

@@ -10,6 +10,7 @@ interface MobileNavigationProps {
   onNavigateMessages?: () => void;
   onNavigateProfile?: () => void;
   onOpenNotifications?: () => void;
+  onOpenCreatePost?: () => void;
 }
 
 export function MobileNavigation({
@@ -18,6 +19,7 @@ export function MobileNavigation({
   onNavigateMessages,
   onNavigateProfile,
   onOpenNotifications,
+  onOpenCreatePost,
 }: MobileNavigationProps) {
   const { user } = useAuth();
 
@@ -45,7 +47,7 @@ export function MobileNavigation({
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => {}} // TODO: Add create post functionality
+          onClick={onOpenCreatePost}
           className="p-3"
         >
           <PlusSquare className="h-6 w-6" />

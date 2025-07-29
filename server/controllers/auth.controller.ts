@@ -110,6 +110,36 @@ export async function setupAuth(app: Express) {
   }));
 }
 
+// Get current user - matches the `/api/auth/user` endpoint
+export const getCurrentUser = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  if (req.isAuthenticated() && req.user) {
+    // Passport-based authentication (Google OAuth)
+    const userId = (req.user as any).id;
+    const user = await storage.getUser(userId);
+    if (user) {
+      const { password, ...safeUser } = user as any;
+      res.json(safeUser);
+      return;
+    }
+  } else if ((req as SessionRequest).session?.user) {
+    // Session-based authentication (email/password)
+    let user = (req as SessionRequest).session.user;
+    if (user) {
+      const fullUser = await storage.getUser(user.id);
+      if (fullUser) {
+        user = fullUser as any;
+      }
+      const { password, ...safeUser } = user as any;
+      res.json(safeUser);
+      return;
+    }
+  }
+  
+  res.status(401).json({ message: "Unauthorized" });
+});
+
+
+
 // Register new user
 export const register = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
   const { firstName, lastName, username, email, password } = req.body;
@@ -166,7 +196,7 @@ export const register = asyncHandler(async (req: SessionRequest, res: Response):
   res.status(201).json(safeUser);
 });
 
-// Login user (alias for custom-login for consistent API)
+// Login user
 export const login = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
   const { email, password } = req.body;
 

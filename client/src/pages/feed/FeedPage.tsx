@@ -1,15 +1,13 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
-import { PostCard } from "@/components/PostCard";
-import { StoriesCarousel } from "@/components/StoriesCarousel";
+import { EnhancedPostCard } from "@/components/EnhancedPostCard";
+import { EnhancedStoriesCarousel } from "@/components/EnhancedStoriesCarousel";
 import { CreatePostModal } from "@/components/CreatePostModal";
-import { Header } from "@/components/Header";
-import { MobileNavigation } from "@/components/MobileNavigation";
-import { Sidebar } from "@/components/Sidebar";
+import { RightSidebar } from "@/components/RightSidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
-import { Plus, Heart, MessageCircle } from "lucide-react";
+import { Plus, Heart, MessageCircle, Camera } from "lucide-react";
 import { useLocation } from "wouter";
 import type { Post, User } from "@shared/schema";
 
@@ -75,144 +73,74 @@ export default function FeedPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Header
-        onNavigateHome={handleNavigateHome}
-        onNavigateExplore={handleNavigateExplore}
-        onNavigateMessages={handleNavigateMessages}
-        onNavigateProfile={handleNavigateProfile}
-        onOpenNotifications={handleOpenNotifications}
-      />
-
-      {/* Mobile Header */}
-      <header className="md:hidden fixed top-0 left-0 right-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 z-50">
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="text-xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 bg-clip-text text-transparent">
-              Instagram Clone
-            </div>
-            <div className="flex items-center space-x-4">
-              <button className="p-2" onClick={handleOpenNotifications}>
-                <Heart className="h-6 w-6" />
-              </button>
-              <button className="p-2" onClick={handleNavigateMessages}>
-                <MessageCircle className="h-6 w-6" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="pt-16 md:pt-20 pb-16 md:pb-0">
-        <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Feed */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Stories */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-              <StoriesCarousel />
-            </div>
-
-            {/* Create Post Button (Mobile) */}
-            {isMobile && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                <Button
-                  onClick={() => setCreatePostOpen(true)}
-                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Post
-                </Button>
-              </div>
-            )}
-
-            {/* Posts Feed */}
-            <div className="space-y-6">
-              {posts.length === 0 ? (
-                <div className="bg-white dark:bg-gray-800 rounded-lg p-12 text-center border border-gray-200 dark:border-gray-700">
-                  <div className="flex flex-col items-center space-y-4">
-                    <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
-                      <Heart className="h-8 w-8 text-gray-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                        No posts yet
-                      </h3>
-                      <p className="text-gray-500 dark:text-gray-400 mb-4">
-                        Follow some users to see their posts in your feed
-                      </p>
-                      <Button
-                        onClick={() => setCreatePostOpen(true)}
-                        className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create Your First Post
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                posts.map((post) => (
-                  <PostCard
-                    key={post.id}
-                    post={post}
-                    onOpenComments={(postId) => {
-                      // Handle open comments
-                      console.log("Open comments for post:", postId);
-                    }}
-                    onOpenProfile={(username) => {
-                      // Handle open profile
-                      console.log("Open profile:", username);
+    <div className="min-h-screen bg-white dark:bg-gray-900">
+      <div>
+        {/* Main container with Instagram-like layout */}
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+            {/* Main Feed - Center Column */}
+            <div className="lg:col-span-7 lg:col-start-3">
+              <div className="max-w-[470px] mx-auto space-y-6 px-4 lg:px-0">
+                {/* Stories Section */}
+                <div className="mt-6">
+                  <EnhancedStoriesCarousel 
+                    onOpenStory={(userId, storyIndex) => {
+                      console.log("Open story:", userId, storyIndex);
                     }}
                   />
-                ))
-              )}
-            </div>
-          </div>
+                </div>
 
-          {/* Sidebar */}
-          {!isMobile && (
-            <div className="lg:col-span-1">
-              <div className="sticky top-8 space-y-6">
-                <Sidebar />
-                
-                {/* Quick Actions */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
-                    Quick Actions
-                  </h3>
-                  <div className="space-y-2">
-                    <Button
-                      onClick={() => setCreatePostOpen(true)}
-                      variant="outline"
-                      className="w-full justify-start"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Post
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                    >
-                      <MessageCircle className="h-4 w-4 mr-2" />
-                      Messages
-                    </Button>
-                  </div>
+                {/* Posts Feed */}
+                <div className="space-y-6">
+                  {posts.length === 0 ? (
+                    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-12 text-center">
+                      <div className="flex flex-col items-center space-y-4">
+                        <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-full">
+                          <Camera className="h-8 w-8 text-gray-400" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                            Share photos and videos
+                          </h3>
+                          <p className="text-gray-500 dark:text-gray-400 mb-6">
+                            When you share photos and videos, they'll appear on your profile.
+                          </p>
+                          <Button
+                            onClick={() => setCreatePostOpen(true)}
+                            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold"
+                          >
+                            Share your first photo
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    posts.map((post) => (
+                      <EnhancedPostCard
+                        key={post.id}
+                        post={post}
+                        onOpenComments={(postId) => {
+                          console.log("Open comments for post:", postId);
+                        }}
+                        onOpenProfile={(username) => {
+                          setLocation(`/profile/${username}`);
+                        }}
+                      />
+                    ))
+                  )}
                 </div>
               </div>
             </div>
-          )}
+
+            {/* Right Sidebar - Desktop Only */}
+            {!isMobile && (
+              <div className="lg:col-span-3 lg:col-start-10">
+                <RightSidebar />
+              </div>
+            )}
+          </div>
         </div>
       </div>
-      </div>
-
-      <MobileNavigation
-        onNavigateHome={handleNavigateHome}
-        onOpenSearch={handleOpenSearch}
-        onOpenCreatePost={() => setCreatePostOpen(true)}
-        onNavigateReels={handleNavigateReels}
-        onNavigateProfile={handleNavigateProfile}
-      />
 
       <CreatePostModal
         open={createPostOpen}

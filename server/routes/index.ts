@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import cors from "cors";
 import { setupAuth as setupCustomAuth } from "../controllers/auth.controller";
 import { initWebSocketServer } from "../socket";
 import { storage } from "../storage";
@@ -19,6 +20,14 @@ import uploadRoutes from "./upload.routes";
 import fileDataRoutes from "./fileData.routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup CORS for cross-origin requests
+  app.use(cors({
+    origin: true, // Allow all origins in development
+    credentials: true, // Include cookies in requests
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  }));
+
   // Setup authentication
   await setupCustomAuth(app);
 
