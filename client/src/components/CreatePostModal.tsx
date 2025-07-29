@@ -127,7 +127,10 @@ export function CreatePostModal({ open, onOpenChange, onPostCreated }: CreatePos
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-hidden">
+      <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-hidden" aria-describedby="create-post-description">
+        <div id="create-post-description" className="sr-only">
+          Create a new post by uploading images, adding a caption, and sharing with your followers
+        </div>
         <DialogHeader className="flex flex-row items-center justify-between p-0">
           <Button
             variant="ghost"

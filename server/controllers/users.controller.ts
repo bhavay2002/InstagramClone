@@ -3,6 +3,7 @@ import { Response } from "express";
 import { storage } from "../storage";
 import asyncHandler from "express-async-handler";
 import type { SessionRequest } from "../types/SessionRequest";
+import { getUserId } from "../utils/getUserId";
 
 
 /**
@@ -10,14 +11,14 @@ import type { SessionRequest } from "../types/SessionRequest";
  */
 export const searchUsers = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
   const { q } = req.query;
-  const userId = req.session.user?.id;
+  const userId = getUserId(req);
 
   if (!q || typeof q !== "string") {
     res.status(400).json({ message: "Search query is required" });
     return;
   }
 
-  const users = await storage.searchUsers(q, userId || "");
+  const users = await storage.searchUsers(q, userId);
   res.json(users);
 });
 
@@ -40,12 +41,7 @@ export const getUserByUsername = asyncHandler(async (req: SessionRequest, res: R
  * Update the logged-in user's profile.
  */
 export const updateProfile = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
-  const userId = req.session.user?.id;
-  if (!userId) {
-    res.status(401).json({ message: "Unauthorized" });
-    return;
-  }
-  
+  const userId = getUserId(req);
   const updateData = req.body;
   const user = await storage.updateUser(userId, updateData);
   res.json(user);
@@ -55,12 +51,7 @@ export const updateProfile = asyncHandler(async (req: SessionRequest, res: Respo
  * Get suggested users for the logged-in user.
  */
 export const getSuggestedUsers = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
-  const userId = req.session.user?.id;
-  if (!userId) {
-    res.status(401).json({ message: "Unauthorized" });
-    return;
-  }
-  
+  const userId = getUserId(req);
   const suggestions = await storage.getSuggestedUsers(userId);
   res.json(suggestions);
 });
@@ -70,12 +61,7 @@ export const getSuggestedUsers = asyncHandler(async (req: SessionRequest, res: R
  */
 export const getSavedPosts = asyncHandler(async (req: SessionRequest, res: Response): Promise<void> => {
   const { userId } = req.params;
-  const currentUserId = req.session.user?.id;
-
-  if (!currentUserId) {
-    res.status(401).json({ message: "Unauthorized" });
-    return;
-  }
+  const currentUserId = getUserId(req);
 
   // Handle username or user ID
   let targetUserId = userId;
