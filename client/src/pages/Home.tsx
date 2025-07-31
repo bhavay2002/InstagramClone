@@ -1,13 +1,17 @@
-import React, { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
+import { useAuth } from '@/hooks/useAuth';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Header } from '@/components/Header';
 import { MobileNavigation } from '@/components/MobileNavigation';
 import { StoriesCarousel } from '@/components/StoriesCarousel';
 import { PostCard } from '@/components/PostCard';
 import { Sidebar } from '@/components/Sidebar';
 import { CreatePostModal } from '@/components/CreatePostModal';
-import { InfiniteScroll } from '@/components/ui/infinite-scroll';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Loader2, Camera } from 'lucide-react';
 import type { Post, User } from '@shared/schema';
 
 interface FeedPost extends Post {
@@ -16,11 +20,19 @@ interface FeedPost extends Post {
   hasSaved: boolean;
 }
 
+/**
+ * Enhanced Home page component with improved user experience and error handling
+ * Features: Loading states, error handling, accessibility, responsive design
+ */
 export default function Home() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [offset, setOffset] = useState(0);
   const limit = 10;
+  
+  const { user, isLoading: authLoading } = useAuth();
+  const isMobile = useIsMobile();
+  const [, setLocation] = useLocation();
 
   const { data: feedPosts, isLoading } = useQuery<FeedPost[]>({
     queryKey: ['/api/posts/feed', offset],
@@ -50,15 +62,57 @@ export default function Home() {
     setOffset(prev => prev + limit);
   };
 
-  const handleOpenComments = (postId: number) => {
-    // TODO: Open comments modal/page
+  /**
+   * Navigation handlers with proper routing
+   */
+  const handleOpenComments = useCallback((postId: number) => {
     console.log('Opening comments for post:', postId);
-  };
+    // TODO: Implement comments modal/page
+  }, []);
 
-  const handleOpenProfile = (username: string) => {
-    // TODO: Navigate to profile page
-    console.log('Opening profile:', username);
-  };
+  const handleOpenProfile = useCallback((username: string) => {
+    setLocation(`/profile/${username}`);
+  }, [setLocation]);
+
+  const handleNavigateHome = useCallback(() => {
+    window.location.reload();
+  }, []);
+
+  const handleNavigateMessages = useCallback(() => {
+    setLocation('/messages');
+  }, [setLocation]);
+
+  const handleNavigateExplore = useCallback(() => {
+    setLocation('/explore');
+  }, [setLocation]);
+
+  const handleNavigateProfile = useCallback(() => {
+    if (user && typeof user === 'object' && 'username' in user) {
+      setLocation(`/profile/${(user as User).username}`);
+    }
+  }, [user, setLocation]);
+
+  const handleOpenNotifications = useCallback(() => {
+    setLocation('/notifications');
+  }, [setLocation]);
+
+  const handleOpenSearch = useCallback(() => {
+    setLocation('/explore');
+  }, [setLocation]);
+
+  const handleNavigateReels = useCallback(() => {
+    setLocation('/explore');
+  }, [setLocation]);
+
+  const handleCreateStory = useCallback(() => {
+    console.log('Create story');
+    // TODO: Implement story creation
+  }, []);
+
+  const handleOpenStory = useCallback((userId: number, storyIndex: number) => {
+    console.log('Open story:', userId, storyIndex);
+    // TODO: Implement story viewer
+  }, []);
 
   const renderSkeleton = () => (
     <div className="space-y-6">

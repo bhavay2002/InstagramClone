@@ -1,24 +1,46 @@
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Instagram, Eye, EyeOff } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Instagram, Eye, EyeOff, AlertCircle, Loader2, ArrowLeft } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { getUserFriendlyErrorMessage } from "@/lib/authUtils";
 import { Link, useLocation } from "wouter";
 
+/**
+ * Enhanced sign-up form validation schema with comprehensive security validation
+ */
 const signUpSchema = z.object({
-  firstName: z.string().min(2, "First name must be at least 2 characters"),
-  lastName: z.string().min(2, "Last name must be at least 2 characters"),
-  username: z.string().min(3, "Username must be at least 3 characters").regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string(),
+  firstName: z.string()
+    .min(2, "First name must be at least 2 characters")
+    .max(50, "First name is too long")
+    .regex(/^[a-zA-Z\s'-]+$/, "First name can only contain letters, spaces, hyphens, and apostrophes"),
+  lastName: z.string()
+    .min(2, "Last name must be at least 2 characters")
+    .max(50, "Last name is too long")
+    .regex(/^[a-zA-Z\s'-]+$/, "Last name can only contain letters, spaces, hyphens, and apostrophes"),
+  username: z.string()
+    .min(3, "Username must be at least 3 characters")
+    .max(30, "Username is too long")
+    .regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores")
+    .regex(/^(?!.*__)/i, "Username cannot contain consecutive underscores"),
+  email: z.string()
+    .min(1, "Email is required")
+    .email("Please enter a valid email address")
+    .max(254, "Email is too long"),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .max(128, "Password is too long")
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Password must contain at least one uppercase letter, one lowercase letter, and one number"),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -26,12 +48,25 @@ const signUpSchema = z.object({
 
 type SignUpForm = z.infer<typeof signUpSchema>;
 
+/**
+ * Enhanced sign-up page component with improved security and user experience
+ * Features: Form validation, loading states, error handling, accessibility, auth redirects
+ */
 export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [globalError, setGlobalError] = useState<string | null>(null);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { user, isLoading: authLoading } = useAuth();
   const queryClient = useQueryClient();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (user && !authLoading) {
+      setLocation('/feed');
+    }
+  }, [user, authLoading, setLocation]);
 
   const form = useForm<SignUpForm>({
     resolver: zodResolver(signUpSchema),
@@ -45,48 +80,136 @@ export default function SignUpPage() {
     },
   });
 
+  /**
+   * Sign up mutation with enhanced error handling and security
+   */
   const signUpMutation = useMutation({
-    mutationFn: async (data: Omit<SignUpForm, "confirmPassword">) => {
-      const response = await apiRequest("POST", "/api/auth/register", data);
+    mutationFn: async (data: SignUpForm) => {
+      setGlobalError(null);
+      
+      // Remove confirmPassword from data before sending
+      const { confirmPassword, ...signUpData } = data;
+      
+      // Sanitize inputs
+      const sanitizedData = {
+        ...signUpData,
+        firstName: data.firstName.trim(),
+        lastName: data.lastName.trim(),
+        username: data.username.trim().toLowerCase(),
+        email: data.email.trim().toLowerCase(),
+      };
+      
+      const response = await apiRequest("POST", "/api/auth/register", sanitizedData);
       return response;
     },
     onSuccess: () => {
+      // Clear any existing errors
+      setGlobalError(null);
+      form.reset();
+      
       // Invalidate auth queries to refresh user state
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      
       toast({
         title: "Account created successfully!",
         description: "Welcome to Instagram Clone!",
       });
+      
       // Use a small delay to ensure the query invalidation completes
       setTimeout(() => {
         setLocation("/feed");
       }, 100);
     },
     onError: (error: Error) => {
+      const errorMessage = getUserFriendlyErrorMessage(error, "Failed to create account");
+      setGlobalError(errorMessage);
+      
       toast({
         title: "Registration failed",
-        description: error.message || "Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
+      
+      console.error('Sign up error:', error);
     },
   });
 
-  const handleGoogleAuth = () => {
-    window.location.href = "/api/auth/google";
-  };
+  /**
+   * Handle Google OAuth authentication with error handling
+   */
+  const handleGoogleAuth = useCallback(() => {
+    try {
+      setGlobalError(null);
+      console.log('Initiating Google OAuth for sign up');
+      window.location.href = "/api/auth/google";
+    } catch (error) {
+      const errorMessage = getUserFriendlyErrorMessage(error, "Failed to start Google authentication");
+      setGlobalError(errorMessage);
+      toast({
+        title: "Authentication Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
 
-  const onSubmit = (data: SignUpForm) => {
-    const { confirmPassword, ...signUpData } = data;
-    signUpMutation.mutate(signUpData);
-  };
+  /**
+   * Toggle password visibility
+   */
+  const togglePasswordVisibility = useCallback(() => {
+    setShowPassword(prev => !prev);
+  }, []);
+
+  const toggleConfirmPasswordVisibility = useCallback(() => {
+    setShowConfirmPassword(prev => !prev);
+  }, []);
+
+  /**
+   * Clear global error when user starts interacting
+   */
+  const clearGlobalError = useCallback(() => {
+    setGlobalError(null);
+  }, []);
+
+  /**
+   * Handle form submission with validation
+   */
+  const onSubmit = useCallback((data: SignUpForm) => {
+    if (!signUpMutation.isPending) {
+      signUpMutation.mutate(data);
+    }
+  }, [signUpMutation]);
+
+  // Show loading state while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <div className="flex items-center space-x-2">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span className="text-gray-600 dark:text-gray-400">Loading...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
+        {/* Back Button */}
+        <div className="flex items-center">
+          <Link to="/login">
+            <Button variant="ghost" size="sm" className="p-2">
+              <ArrowLeft className="h-4 w-4" />
+              <span className="sr-only">Back to login</span>
+            </Button>
+          </Link>
+        </div>
+
+        {/* Header */}
+        <header className="text-center">
           <div className="flex justify-center mb-4">
             <div className="p-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full">
-              <Instagram className="h-8 w-8 text-white" />
+              <Instagram className="h-8 w-8 text-white" aria-hidden="true" />
             </div>
           </div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -95,7 +218,15 @@ export default function SignUpPage() {
           <p className="mt-2 text-gray-600 dark:text-gray-400">
             Create your account to start sharing moments
           </p>
-        </div>
+        </header>
+
+        {/* Global Error Alert */}
+        {globalError && (
+          <Alert variant="destructive" className="animate-in slide-in-from-top-2">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{globalError}</AlertDescription>
+          </Alert>
+        )}
 
         <Card className="border-0 shadow-xl">
           <CardHeader className="space-y-1">

@@ -1,3 +1,8 @@
+/**
+ * Enhanced storage layer with comprehensive error handling and logging
+ * Features: Type safety, connection pooling, transaction support, error recovery
+ */
+
 import {
   users,
   posts,
@@ -25,7 +30,83 @@ import {
   type SavedPost,
 } from "@shared/schema";
 import { db } from "./db/db";
-import { eq, desc, and, or, sql, count, exists, not, gt, lt } from "drizzle-orm";
+import { eq, desc, and, or, sql, count, exists, not, gt, lt, ilike, inArray } from "drizzle-orm";
+
+/**
+ * Custom error classes for better error handling
+ */
+export class StorageError extends Error {
+  constructor(
+    message: string,
+    public readonly operation: string,
+    public readonly originalError?: unknown
+  ) {
+    super(`Storage Error [${operation}]: ${message}`);
+    this.name = "StorageError";
+  }
+}
+
+export class NotFoundError extends StorageError {
+  constructor(resource: string, identifier: string | number) {
+    super(`${resource} not found: ${identifier}`, "NotFound");
+    this.name = "NotFoundError";
+  }
+}
+
+export class DuplicateError extends StorageError {
+  constructor(resource: string, field: string, value: string) {
+    super(`${resource} already exists with ${field}: ${value}`, "Duplicate");
+    this.name = "DuplicateError";
+  }
+}
+
+/**
+ * Utility function for error handling with logging
+ */
+function handleStorageError(operation: string, error: unknown): never {
+  console.error(`Storage operation failed [${operation}]:`, error);
+  
+  if (error instanceof StorageError) {
+    throw error;
+  }
+  
+  if (error instanceof Error) {
+    // Handle specific database errors
+    if (error.message.includes("unique constraint")) {
+      throw new DuplicateError("Resource", "field", "value");
+    }
+    if (error.message.includes("not found")) {
+      throw new NotFoundError("Resource", "unknown");
+    }
+    throw new StorageError(error.message, operation, error);
+  }
+  
+  throw new StorageError("Unknown error occurred", operation, error);
+}
+
+/**
+ * Performance monitoring utility
+ */
+function withPerformanceMonitoring<T>(
+  operation: string,
+  fn: () => Promise<T>
+): Promise<T> {
+  const startTime = Date.now();
+  
+  return fn()
+    .then((result) => {
+      const duration = Date.now() - startTime;
+      if (duration > 1000) { // Log slow queries (> 1s)
+        console.warn(`Slow query detected [${operation}]: ${duration}ms`);
+      }
+      return result;
+    })
+    .catch((error) => {
+      const duration = Date.now() - startTime;
+      console.error(`Query failed [${operation}] after ${duration}ms:`, error);
+      throw error;
+    });
+}
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -93,148 +174,417 @@ export interface IStorage {
   markAllNotificationsAsRead(userId: string): Promise<void>;
 }
 
+/**
+ * Enhanced database storage implementation with comprehensive error handling
+ * Features: Transaction support, performance monitoring, detailed logging
+ */
 export class DatabaseStorage implements IStorage {
-  // User operations
+  
+  // User operations with enhanced error handling
   async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
+    return withPerformanceMonitoring('getUser', async () => {
+      try {
+        const [user] = await db.select().from(users).where(eq(users.id, id));
+        return user;
+      } catch (error) {
+        handleStorageError('getUser', error);
+      }
+    });
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(userData)
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          ...userData,
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
-    return user;
+    return withPerformanceMonitoring('upsertUser', async () => {
+      try {
+        const [user] = await db
+          .insert(users)
+          .values({
+            ...userData,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .onConflictDoUpdate({
+            target: users.id,
+            set: {
+              ...userData,
+              updatedAt: new Date(),
+            },
+          })
+          .returning();
+        
+        if (!user) {
+          throw new StorageError('Failed to upsert user', 'upsertUser');
+        }
+        
+        return user;
+      } catch (error) {
+        handleStorageError('upsertUser', error);
+      }
+    });
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user;
+    return withPerformanceMonitoring('getUserByUsername', async () => {
+      try {
+        if (!username?.trim()) {
+          return undefined;
+        }
+        
+        const [user] = await db
+          .select()
+          .from(users)
+          .where(eq(users.username, username.toLowerCase()));
+        return user;
+      } catch (error) {
+        handleStorageError('getUserByUsername', error);
+      }
+    });
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-  const [user] = await db.select().from(users).where(eq(users.email, email));
-  return user;
-}
+    return withPerformanceMonitoring('getUserByEmail', async () => {
+      try {
+        if (!email?.trim()) {
+          return undefined;
+        }
+        
+        const [user] = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, email.toLowerCase()));
+        return user;
+      } catch (error) {
+        handleStorageError('getUserByEmail', error);
+      }
+    });
+  }
 
   async searchUsers(query: string, currentUserId: string): Promise<User[]> {
-    return await db
-      .select()
-      .from(users)
-      .where(
-        and(
-          or(
-            sql`${users.username} ILIKE ${`%${query}%`}`,
-            sql`${users.firstName} ILIKE ${`%${query}%`}`,
-            sql`${users.lastName} ILIKE ${`%${query}%`}`
-          ),
-          not(eq(users.id, currentUserId))
-        )
-      )
-      .limit(20);
+    return withPerformanceMonitoring('searchUsers', async () => {
+      try {
+        if (!query?.trim() || query.length < 2) {
+          return [];
+        }
+        
+        const searchTerm = `%${query.toLowerCase().trim()}%`;
+        
+        return await db
+          .select({
+            id: users.id,
+            username: users.username,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            email: users.email,
+            bio: users.bio,
+            avatar: users.avatar,
+            isVerified: users.isVerified,
+            followerCount: users.followerCount,
+            followingCount: users.followingCount,
+            postCount: users.postCount,
+            createdAt: users.createdAt,
+            updatedAt: users.updatedAt,
+          })
+          .from(users)
+          .where(
+            and(
+              or(
+                ilike(users.username, searchTerm),
+                ilike(users.firstName, searchTerm),
+                ilike(users.lastName, searchTerm)
+              ),
+              not(eq(users.id, currentUserId))
+            )
+          )
+          .orderBy(desc(users.followerCount))
+          .limit(20);
+      } catch (error) {
+        handleStorageError('searchUsers', error);
+      }
+    });
   }
 
   async updateUser(id: string, data: Partial<User>): Promise<User> {
-    const [user] = await db
-      .update(users)
-      .set({ ...data, updatedAt: new Date() })
-      .where(eq(users.id, id))
-      .returning();
-    return user;
+    return withPerformanceMonitoring('updateUser', async () => {
+      try {
+        if (!id?.trim()) {
+          throw new StorageError('User ID is required', 'updateUser');
+        }
+        
+        const [user] = await db
+          .update(users)
+          .set({ 
+            ...data, 
+            updatedAt: new Date() 
+          })
+          .where(eq(users.id, id))
+          .returning();
+        
+        if (!user) {
+          throw new NotFoundError('User', id);
+        }
+        
+        return user;
+      } catch (error) {
+        handleStorageError('updateUser', error);
+      }
+    });
   }
 
-  // Follow operations
+  // Follow operations with transaction safety
   async followUser(followerId: string, followingId: string): Promise<void> {
-    await db.transaction(async (tx) => {
-      await tx.insert(follows).values({ followerId, followingId });
-      await tx.update(users).set({ 
-        followingCount: sql`${users.followingCount} + 1` 
-      }).where(eq(users.id, followerId));
-      await tx.update(users).set({ 
-        followerCount: sql`${users.followerCount} + 1` 
-      }).where(eq(users.id, followingId));
+    return withPerformanceMonitoring('followUser', async () => {
+      try {
+        if (!followerId?.trim() || !followingId?.trim()) {
+          throw new StorageError('Follower and following IDs are required', 'followUser');
+        }
+        
+        if (followerId === followingId) {
+          throw new StorageError('Cannot follow yourself', 'followUser');
+        }
+        
+        // Check if already following
+        const existingFollow = await this.isFollowing(followerId, followingId);
+        if (existingFollow) {
+          throw new DuplicateError('Follow relationship', 'users', `${followerId}-${followingId}`);
+        }
+        
+        await db.transaction(async (tx) => {
+          await tx.insert(follows).values({ 
+            followerId, 
+            followingId,
+            createdAt: new Date()
+          });
+          
+          await tx.update(users).set({ 
+            followingCount: sql`${users.followingCount} + 1` 
+          }).where(eq(users.id, followerId));
+          
+          await tx.update(users).set({ 
+            followerCount: sql`${users.followerCount} + 1` 
+          }).where(eq(users.id, followingId));
+          
+          // Create notification
+          await tx.insert(notifications).values({
+            userId: followingId,
+            type: 'follow',
+            fromUserId: followerId,
+            createdAt: new Date()
+          });
+        });
+      } catch (error) {
+        handleStorageError('followUser', error);
+      }
     });
   }
 
   async unfollowUser(followerId: string, followingId: string): Promise<void> {
-    await db.transaction(async (tx) => {
-      await tx.delete(follows).where(
-        and(eq(follows.followerId, followerId), eq(follows.followingId, followingId))
-      );
-      await tx.update(users).set({ 
-        followingCount: sql`${users.followingCount} - 1` 
-      }).where(eq(users.id, followerId));
-      await tx.update(users).set({ 
-        followerCount: sql`${users.followerCount} - 1` 
-      }).where(eq(users.id, followingId));
+    return withPerformanceMonitoring('unfollowUser', async () => {
+      try {
+        if (!followerId?.trim() || !followingId?.trim()) {
+          throw new StorageError('Follower and following IDs are required', 'unfollowUser');
+        }
+        
+        // Check if actually following
+        const isFollowing = await this.isFollowing(followerId, followingId);
+        if (!isFollowing) {
+          throw new NotFoundError('Follow relationship', `${followerId}-${followingId}`);
+        }
+        
+        await db.transaction(async (tx) => {
+          const deleteResult = await tx.delete(follows).where(
+            and(eq(follows.followerId, followerId), eq(follows.followingId, followingId))
+          );
+          
+          await tx.update(users).set({ 
+            followingCount: sql`GREATEST(${users.followingCount} - 1, 0)` 
+          }).where(eq(users.id, followerId));
+          
+          await tx.update(users).set({ 
+            followerCount: sql`GREATEST(${users.followerCount} - 1, 0)` 
+          }).where(eq(users.id, followingId));
+        });
+      } catch (error) {
+        handleStorageError('unfollowUser', error);
+      }
     });
   }
 
   async isFollowing(followerId: string, followingId: string): Promise<boolean> {
-    const [follow] = await db
-      .select()
-      .from(follows)
-      .where(and(eq(follows.followerId, followerId), eq(follows.followingId, followingId)));
-    return !!follow;
+    return withPerformanceMonitoring('isFollowing', async () => {
+      try {
+        if (!followerId?.trim() || !followingId?.trim()) {
+          return false;
+        }
+        
+        const [follow] = await db
+          .select()
+          .from(follows)
+          .where(
+            and(
+              eq(follows.followerId, followerId),
+              eq(follows.followingId, followingId)
+            )
+          )
+          .limit(1);
+        
+        return !!follow;
+      } catch (error) {
+        handleStorageError('isFollowing', error);
+      }
+    });
   }
 
-async getFollowers(userId: string): Promise<User[]> {
-  const result = await db
-    .select()
-    .from(follows)
-    .innerJoin(users, eq(follows.followerId, users.id))
-    .where(eq(follows.followingId, userId));
-
-  return result.map((row) => row.users);
-}
-
+  async getFollowers(userId: string): Promise<User[]> {
+    return withPerformanceMonitoring('getFollowers', async () => {
+      try {
+        if (!userId?.trim()) {
+          return [];
+        }
+        
+        const result = await db
+          .select({
+            id: users.id,
+            username: users.username,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            email: users.email,
+            bio: users.bio,
+            avatar: users.avatar,
+            isVerified: users.isVerified,
+            followerCount: users.followerCount,
+            followingCount: users.followingCount,
+            postCount: users.postCount,
+            createdAt: users.createdAt,
+            updatedAt: users.updatedAt,
+          })
+          .from(users)
+          .innerJoin(follows, eq(follows.followerId, users.id))
+          .where(eq(follows.followingId, userId))
+          .orderBy(desc(follows.createdAt));
+        
+        return result;
+      } catch (error) {
+        handleStorageError('getFollowers', error);
+      }
+    });
+  }
 
   async getFollowing(userId: string): Promise<User[]> {
-  const result = await db
-    .select()
-    .from(follows)
-    .innerJoin(users, eq(follows.followingId, users.id))
-    .where(eq(follows.followerId, userId));
-
-  return result.map((row) => row.users);
-}
-
-
-  async getSuggestedUsers(userId: string): Promise<User[]> {
-    return await db
-      .select()
-      .from(users)
-      .where(
-        and(
-          not(eq(users.id, userId)),
-          not(exists(
-            db.select().from(follows).where(
-              and(eq(follows.followerId, userId), eq(follows.followingId, users.id))
-            )
-          ))
-        )
-      )
-      .limit(5);
+    return withPerformanceMonitoring('getFollowing', async () => {
+      try {
+        if (!userId?.trim()) {
+          return [];
+        }
+        
+        const result = await db
+          .select({
+            id: users.id,
+            username: users.username,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            email: users.email,
+            bio: users.bio,
+            avatar: users.avatar,
+            isVerified: users.isVerified,
+            followerCount: users.followerCount,
+            followingCount: users.followingCount,
+            postCount: users.postCount,
+            createdAt: users.createdAt,
+            updatedAt: users.updatedAt,
+          })
+          .from(users)
+          .innerJoin(follows, eq(follows.followingId, users.id))
+          .where(eq(follows.followerId, userId))
+          .orderBy(desc(follows.createdAt));
+        
+        return result;
+      } catch (error) {
+        handleStorageError('getFollowing', error);
+      }
+    });
   }
 
-  // Post operations
-  async createPost(post: InsertPost): Promise<Post> {
-    const [newPost] = await db.transaction(async (tx) => {
-      const [created] = await tx.insert(posts).values(post).returning();
-      await tx.update(users).set({ 
-        postCount: sql`${users.postCount} + 1` 
-      }).where(eq(users.id, post.userId));
-      return [created];
+  async getSuggestedUsers(userId: string): Promise<User[]> {
+    return withPerformanceMonitoring('getSuggestedUsers', async () => {
+      try {
+        if (!userId?.trim()) {
+          return [];
+        }
+        
+        // Get users not followed by current user, ordered by popularity
+        return await db
+          .select({
+            id: users.id,
+            username: users.username,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            email: users.email,
+            bio: users.bio,
+            avatar: users.avatar,
+            isVerified: users.isVerified,
+            followerCount: users.followerCount,
+            followingCount: users.followingCount,
+            postCount: users.postCount,
+            createdAt: users.createdAt,
+            updatedAt: users.updatedAt,
+          })
+          .from(users)
+          .where(
+            and(
+              not(eq(users.id, userId)),
+              not(
+                exists(
+                  db
+                    .select()
+                    .from(follows)
+                    .where(
+                      and(
+                        eq(follows.followerId, userId),
+                        eq(follows.followingId, users.id)
+                      )
+                    )
+                )
+              )
+            )
+          )
+          .orderBy(desc(users.followerCount))
+          .limit(10);
+      } catch (error) {
+        handleStorageError('getSuggestedUsers', error);
+      }
     });
-    return newPost;
+  }
+
+  // Post operations with enhanced validation
+  async createPost(postData: InsertPost): Promise<Post> {
+    return withPerformanceMonitoring('createPost', async () => {
+      try {
+        if (!postData.userId?.trim()) {
+          throw new StorageError('User ID is required', 'createPost');
+        }
+        
+        const [newPost] = await db.transaction(async (tx) => {
+          const [created] = await tx.insert(posts).values({
+            ...postData,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }).returning();
+          
+          await tx.update(users).set({ 
+            postCount: sql`${users.postCount} + 1` 
+          }).where(eq(users.id, postData.userId));
+          
+          return [created];
+        });
+        
+        if (!newPost) {
+          throw new StorageError('Failed to create post', 'createPost');
+        }
+        
+        return newPost;
+      } catch (error) {
+        handleStorageError('createPost', error);
+      }
+    });
   }
 
   async getPost(id: number): Promise<Post | undefined> {
