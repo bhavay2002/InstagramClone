@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, memo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -13,7 +13,7 @@ interface SidebarProps {
   onSeeAllSuggestions?: () => void;
 }
 
-export function Sidebar({ onSwitchAccount, onSeeAllSuggestions }: SidebarProps) {
+export const Sidebar = memo(function Sidebar({ onSwitchAccount, onSeeAllSuggestions }: SidebarProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -43,9 +43,10 @@ export function Sidebar({ onSwitchAccount, onSeeAllSuggestions }: SidebarProps) 
     },
   });
 
-  const handleFollow = (userId: string) => {
+  const handleFollow = useCallback((userId: string) => {
+    if (followMutation.isPending) return;
     followMutation.mutate(userId);
-  };
+  }, [followMutation]);
 
   return (
     <aside className="hidden lg:block w-80 pl-8 py-6">
@@ -143,4 +144,4 @@ export function Sidebar({ onSwitchAccount, onSeeAllSuggestions }: SidebarProps) 
       </div>
     </aside>
   );
-}
+});

@@ -161,6 +161,9 @@ export default function Home() {
         onOpenCreatePost={() => setShowCreateModal(true)}
         onNavigateReels={() => console.log('Navigate to reels')}
         onNavigateProfile={() => console.log('Navigate to profile')}
+        onNavigateExplore={() => console.log('Navigate to explore')}
+        onNavigateMessages={() => console.log('Navigate to messages')}
+        onOpenNotifications={() => console.log('Open notifications')}
       />
 
       <CreatePostModal

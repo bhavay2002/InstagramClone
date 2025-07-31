@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, memo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ interface StoriesCarouselProps {
   onCreateStory?: () => void;
 }
 
-export function StoriesCarousel({ onOpenStory, onCreateStory }: StoriesCarouselProps) {
+export const StoriesCarousel = memo(function StoriesCarousel({ onOpenStory, onCreateStory }: StoriesCarouselProps) {
   const { user } = useAuthContext();
 
   const { data: followingStories } = useQuery<{ user: User; stories: Story[] }[]>({
@@ -77,4 +77,4 @@ export function StoriesCarousel({ onOpenStory, onCreateStory }: StoriesCarouselP
       </div>
     </Card>
   );
-}
+});

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,7 +34,7 @@ interface EnhancedPostCardProps {
   onOpenProfile?: (username: string) => void;
 }
 
-export function EnhancedPostCard({ post, onOpenComments, onOpenProfile }: EnhancedPostCardProps) {
+export const EnhancedPostCard = memo(function EnhancedPostCard({ post, onOpenComments, onOpenProfile }: EnhancedPostCardProps) {
   const [commentText, setCommentText] = useState('');
   const [showHeart, setShowHeart] = useState(false);
   const { toast } = useToast();
@@ -292,10 +292,10 @@ export function EnhancedPostCard({ post, onOpenComments, onOpenProfile }: Enhanc
         </div>
 
         {/* Likes count */}
-        {post.likesCount > 0 && (
+        {(post.likesCount || 0) > 0 && (
           <div className="mb-2">
             <span className="font-semibold text-sm text-gray-900 dark:text-white">
-              {post.likesCount.toLocaleString()} {post.likesCount === 1 ? 'like' : 'likes'}
+              {(post.likesCount || 0).toLocaleString()} {(post.likesCount || 0) === 1 ? 'like' : 'likes'}
             </span>
           </div>
         )}
@@ -377,4 +377,4 @@ export function EnhancedPostCard({ post, onOpenComments, onOpenProfile }: Enhanc
       </div>
     </div>
   );
-}
+});

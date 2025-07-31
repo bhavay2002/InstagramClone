@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,24 @@ interface PostCardProps {
   onOpenProfile?: (username: string) => void;
 }
 
-export function PostCard({ post, onOpenComments, onOpenProfile }: PostCardProps) {
+// Helper function to safely format numbers
+const formatCount = (count: number | null | undefined): string => {
+  const num = count || 0;
+  if (num === 0) return '';
+  return num.toLocaleString();
+};
+
+// Helper function to safely format date
+const formatDate = (date: Date | string | null | undefined): string => {
+  if (!date) return '';
+  try {
+    return formatDistanceToNow(new Date(date), { addSuffix: true });
+  } catch {
+    return '';
+  }
+};
+
+export const PostCard = memo(function PostCard({ post, onOpenComments, onOpenProfile }: PostCardProps) {
   const [commentText, setCommentText] = useState('');
   const [showHeart, setShowHeart] = useState(false);
   const { toast } = useToast();
@@ -80,20 +97,25 @@ export function PostCard({ post, onOpenComments, onOpenProfile }: PostCardProps)
     },
   });
 
-  const handleLike = () => {
+  const handleLike = useCallback(() => {
+    if (likeMutation.isPending) return;
     likeMutation.mutate();
-  };
+  }, [likeMutation]);
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
+    if (saveMutation.isPending) return;
     saveMutation.mutate();
-  };
+  }, [saveMutation]);
 
-  const handleComment = (e: React.FormEvent) => {
+  const handleComment = useCallback(() => {
+    if (!commentText.trim() || commentMutation.isPending) return;
+    commentMutation.mutate(commentText.trim());
+  }, [commentText, commentMutation]);
+
+  const handleCommentSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    if (commentText.trim()) {
-      commentMutation.mutate(commentText.trim());
-    }
-  };
+    handleComment();
+  }, [handleComment]);
 
   const handleDoubleClick = () => {
     if (!post.hasLiked) {
@@ -223,11 +245,13 @@ export function PostCard({ post, onOpenComments, onOpenProfile }: PostCardProps)
         </div>
 
         {/* Likes */}
-        <div className="mb-2">
-          <span className="font-semibold text-sm text-gray-900 dark:text-white">
-            {post.likesCount} likes
-          </span>
-        </div>
+        {(post.likesCount || 0) > 0 && (
+          <div className="mb-2">
+            <span className="font-semibold text-sm text-gray-900 dark:text-white">
+              {formatCount(post.likesCount)} {(post.likesCount || 0) === 1 ? 'like' : 'likes'}
+            </span>
+          </div>
+        )}
 
         {/* Caption */}
         {post.caption && (
@@ -253,13 +277,13 @@ export function PostCard({ post, onOpenComments, onOpenProfile }: PostCardProps)
 
         {/* Time */}
         <div className="text-xs text-gray-500">
-          {post.createdAt ? formatDistanceToNow(new Date(post.createdAt), { addSuffix: true }) : 'Just now'}
+          {formatDate(post.createdAt)}
         </div>
       </div>
 
       {/* Add Comment */}
       <div className="border-t border-gray-200 dark:border-gray-700 p-4">
-        <form onSubmit={handleComment} className="flex items-center space-x-3">
+        <form onSubmit={handleCommentSubmit} className="flex items-center space-x-3">
           <Input
             type="text"
             placeholder="Add a comment..."
@@ -282,4 +306,4 @@ export function PostCard({ post, onOpenComments, onOpenProfile }: PostCardProps)
       </div>
     </Card>
   );
-}
+});

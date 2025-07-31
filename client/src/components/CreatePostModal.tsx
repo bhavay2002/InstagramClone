@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback, memo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -21,7 +21,7 @@ interface CreatePostModalProps {
   onPostCreated?: () => void;
 }
 
-export function CreatePostModal({ open, onOpenChange, onPostCreated }: CreatePostModalProps) {
+export const CreatePostModal = memo(function CreatePostModal({ open, onOpenChange, onPostCreated }: CreatePostModalProps) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [caption, setCaption] = useState('');
   const [location, setLocation] = useState('');
@@ -64,15 +64,15 @@ export function CreatePostModal({ open, onOpenChange, onPostCreated }: CreatePos
     setPreviewUrls(urls);
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setSelectedFiles([]);
     setPreviewUrls([]);
     setCaption('');
     setLocation('');
     onOpenChange(false);
-  };
+  }, [onOpenChange]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     if (selectedFiles.length === 0) {
       toast({
         title: "Error",
@@ -116,7 +116,7 @@ export function CreatePostModal({ open, onOpenChange, onPostCreated }: CreatePos
         variant: "destructive",
       });
     }
-  };
+  }, [selectedFiles, caption, location, createPostMutation, toast]);
 
   const removeFile = (index: number) => {
     const newFiles = selectedFiles.filter((_, i) => i !== index);
@@ -240,4 +240,4 @@ export function CreatePostModal({ open, onOpenChange, onPostCreated }: CreatePos
       </DialogContent>
     </Dialog>
   );
-}
+});

@@ -2,7 +2,7 @@ import { Request, Response, NextFunction, Express } from "express";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import asyncHandler from "express-async-handler";
-import { passport } from "../auth/passport";
+import passport from "../auth/passport";
 import { getSession } from "../auth/session";
 import { storage } from "../storage";
 import type { SessionRequest } from "../types/SessionRequest";
@@ -41,7 +41,17 @@ export async function setupAuth(app: Express) {
 
   // Get current user route
   app.get("/api/auth/user", async (req: Request, res: Response) => {
-    if (req.isAuthenticated() && req.user) {
+    // Debug logging in development only
+    if (process.env.NODE_ENV === 'development') {
+      console.log("[AUTH] Checking authentication:", {
+        isAuthenticated: req.isAuthenticated ? req.isAuthenticated() : false,
+        hasUser: !!req.user,
+        hasSession: !!(req as SessionRequest).session,
+        hasSessionUser: !!(req as SessionRequest).session?.user,
+      });
+    }
+
+    if (req.isAuthenticated && req.isAuthenticated() && req.user) {
       // Passport-based authentication (Google OAuth)
       const userId = (req.user as any).id;
       const user = await storage.getUser(userId);

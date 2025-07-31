@@ -11,6 +11,8 @@ interface MobileNavigationProps {
   onNavigateProfile?: () => void;
   onOpenNotifications?: () => void;
   onOpenCreatePost?: () => void;
+  onOpenSearch?: () => void;
+  onNavigateReels?: () => void;
 }
 
 export function MobileNavigation({
@@ -20,6 +22,8 @@ export function MobileNavigation({
   onNavigateProfile,
   onOpenNotifications,
   onOpenCreatePost,
+  onOpenSearch,
+  onNavigateReels,
 }: MobileNavigationProps) {
   const { user } = useAuth();
 
@@ -38,7 +42,7 @@ export function MobileNavigation({
         <Button
           variant="ghost"
           size="sm"
-          onClick={onNavigateExplore}
+          onClick={onOpenSearch || onNavigateExplore}
           className="p-3"
         >
           <Search className="h-6 w-6" />
